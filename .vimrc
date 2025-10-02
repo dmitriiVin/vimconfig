@@ -149,30 +149,43 @@ function! RunCode()
     endif
 endfunction
 
-" === ПЕРЕКЛЮЧЕНИЕ МЕЖДУ ОКНАМИ ОДНОЙ КНОПКОЙ ===
+" === УПРАВЛЕНИЕ NERDTREE ===
 
-" F1 - умное переключение между NERDTree и рабочим окном
-nnoremap <F1> :call ToggleBetweenNERDTreeAndCode()<CR>
+" F1 - открыть/закрыть NERDTree
+nnoremap <F1> :NERDTreeToggle<CR>
 
-function! ToggleBetweenNERDTreeAndCode()
-    " Проверяем, открыт ли NERDTree в текущем табе
-    let nerdtree_winnr = -1
-    for winnr in range(1, winnr('$'))
-        if getbufvar(winbufnr(winnr), '&filetype') == 'nerdtree'
-            let nerdtree_winnr = winnr
-            break
-        endif
-    endfor
+" F3 - показать текущий файл в NERDTree
+nnoremap <F3> :NERDTreeFind<CR>
 
-    " Если сейчас в NERDTree - переходим в следующее окно
+" Ctrl + B - переключение между NERDTree и рабочим окном
+nnoremap <C-b> :call SwitchBetweenNERDTreeAndCode()<CR>
+
+function! SwitchBetweenNERDTreeAndCode()
+    " Если сейчас в NERDTree - переходим в рабочее окно
     if &filetype == 'nerdtree'
-        wincmd w
-    " Если NERDTree открыт в другом окне - переходим в него
-    elseif nerdtree_winnr != -1
-        execute nerdtree_winnr . 'wincmd w'
-    " Если NERDTree не открыт - открываем его
+        wincmd l
+        " Если не получилось перейти (нет других окон), создаем новое
+        if &filetype == 'nerdtree'
+            wincmd l
+        endif
+    " Если в рабочем окне - ищем NERDTree и переходим в него
     else
-        NERDTreeToggle
+        " Ищем окно с NERDTree
+        let nerdtree_winnr = -1
+        for winnr in range(1, winnr('$'))
+            if getbufvar(winbufnr(winnr), '&filetype') == 'nerdtree'
+                let nerdtree_winnr = winnr
+                break
+            endif
+        endfor
+        
+        " Если нашли NERDTree - переходим в него
+        if nerdtree_winnr != -1
+            execute nerdtree_winnr . 'wincmd w'
+        " Если NERDTree не найден - открываем его
+        else
+            NERDTreeToggle
+        endif
     endif
 endfunction
 
@@ -226,9 +239,6 @@ cnoremap <C-Space> <C-d>
 
 " Создать новый файл в текущей директории
 nnoremap <C-n> :e <C-R>=expand("%:p:h") . "/" <CR>
-
-" Показать все открытые буферы
-nnoremap <C-b> :ls<CR>:b<space>
 
 " Быстрое переключение между последними файлами
 nnoremap <C-Tab> :b#<CR>
@@ -321,9 +331,6 @@ Plug 'cormacrelf/vim-colors-github'
 call plug#end()
 
 " === НАСТРОЙКИ ПЛАГИНОВ ===
-
-" NERDTree - Ctrl+B для переключения файлового дерева
-nnoremap <C-b> :NERDTreeToggle<CR>
 
 " vim-commentary - Ctrl+/ для комментирования/раскомментирования кода
 noremap <C-/> :Commentary<CR>
