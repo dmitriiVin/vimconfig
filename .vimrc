@@ -36,28 +36,31 @@ set linebreak
 " === КАСТОМНАЯ ПОДСВЕТКА СИНТАКСИСА ===
 
 " Яркая подсветка комментариев
-"highlight Comment cterm=italic ctermfg=cyan
+highlight Comment cterm=italic ctermfg=cyan
 
 " Подсветка функций и методов
-"highlight Function cterm=bold ctermfg=yellow
+highlight Function cterm=bold ctermfg=yellow
 
 " Подсветка строк
-highlight String ctermfg=235 cterm=none
+highlight String ctermfg=green cterm=none
 
 " Подсветка чисел
-"highlight Number ctermfg=magenta
+highlight Number ctermfg=magenta
 
 " Подсветка ключевых слов
-"highlight Keyword cterm=bold ctermfg=red
+highlight Keyword cterm=bold ctermfg=red
 
 " Подсветка типов данных (C/C++)
-"highlight Type ctermfg=blue
+highlight Type ctermfg=blue
 
 " Подсветка Preprocessor (C/C++)
-"highlight PreProc ctermfg=lightblue
+highlight PreProc ctermfg=lightblue
 
 " Более контрастная подсветка поиска
-"highlight Search ctermbg=yellow ctermfg=black
+highlight Search ctermbg=yellow ctermfg=black
+
+" Подсветка текущей строки (более мягкая)
+highlight CursorLine ctermbg=235 cterm=none
 
 " === КОМАНДЫ И СОЧЕТАНИЯ КЛАВИШ ===
 
@@ -99,7 +102,7 @@ inoremap <C-f> <Esc>/
 nnoremap <C-h> :nohlsearch<CR>
 
 " Ctrl + N - создать новый файл
-nnoremap <C-n> :enew<CR>
+nnoremap <C-n> :call CreateNewFile()<CR>
 
 " Tab - переключение между открытыми буферами (файлами)
 nnoremap <Tab> :bnext<CR>
@@ -149,13 +152,136 @@ function! RunCode()
     endif
 endfunction
 
-" === УПРАВЛЕНИЕ NERDTREE ===
+" === GIT КОМАНДЫ НА ФУНКЦИОНАЛЬНЫЕ КЛАВИШИ ===
+
+" F6 - Git status (посмотреть что изменилось)
+nnoremap <F6> :Git<CR>
+
+" F7 - Git commit (закоммитить)
+nnoremap <F7> :Git commit<CR>
+
+" F8 - Git push (отправить на GitHub)
+nnoremap <F8> :Git push<CR>
+
+" F9 - Открыть текущий файл в GitHub
+nnoremap <F9> :GBrowse<CR>
+
+" F10 - Git pull (обновить с GitHub)
+nnoremap <F10> :Git pull<CR>
+
+" === УПРАВЛЕНИЕ NERDTREE И БУФЕРАМИ ===
 
 " F1 - открыть/закрыть NERDTree
 nnoremap <F1> :NERDTreeToggle<CR>
 
 " F3 - показать текущий файл в NERDTree
 nnoremap <F3> :NERDTreeFind<CR>
+
+" F4 - обновить NERDTree (чтобы видеть новые файлы)
+nnoremap <F4> :NERDTreeRefreshRoot<CR>
+
+" Ctrl + n - создать файл или папку в текущей папке NERDTree
+nnoremap <C-n> :call CreateFileOrDirectoryInNERDTree()<CR>
+
+function! CreateFileOrDirectoryInNERDTree()
+    if &filetype == 'nerdtree'
+        " Получаем путь к текущему узлу NERDTree
+        let current_path = g:NERDTreeFileNode.GetSelected().path.str()
+        if empty(current_path)
+            echo "Не удалось получить путь"
+            return
+        endif
+        
+        " Определяем директорию
+        if isdirectory(current_path)
+            let target_dir = current_path
+        else
+            let target_dir = fnamemodify(current_path, ':h')
+        endif
+        
+        " Выбор типа: файл или папка
+        let choice = confirm("Создать:", "&Файл\n&Папку", 1)
+        
+        if choice == 1
+            " Создание файла
+            let new_filename = input('Имя файла (с расширением): ', target_dir . '/')
+            if new_filename != ''
+                " Создаем файл
+                let cmd = 'touch "' . new_filename . '"'
+                let output = system(cmd)
+                
+                if v:shell_error
+                    echo "Ошибка при создании файла: " . output
+                else
+                    echo "Создан файл: " . fnamemodify(new_filename, ':t')
+                    " Обновляем NERDTree
+                    NERDTreeRefreshRoot
+                endif
+            endif
+            
+        elseif choice == 2
+            " Создание папки
+            let new_dirname = input('Имя папки: ', target_dir . '/')
+            if new_dirname != ''
+                " Создаем папку
+                let cmd = 'mkdir -p "' . new_dirname . '"'
+                let output = system(cmd)
+                
+                if v:shell_error
+                    echo "Ошибка при создании папки: " . output
+                else
+                    echo "Создана папка: " . fnamemodify(new_dirname, ':t')
+                    " Обновляем NERDTree
+                    NERDTreeRefreshRoot
+                endif
+            endif
+        endif
+    else
+        echo "Эта команда работает только в NERDTree"
+    endif
+endfunction
+
+
+" Ctrl + d - удалить файл/папку в NERDTree
+nnoremap <C-d> :call DeleteFileOrDirectory()<CR>
+
+function! DeleteFileOrDirectory()
+    if &filetype == 'nerdtree'
+        " Получаем путь к выбранному файлу/папке
+        let current_node = g:NERDTreeFileNode.GetSelected()
+        if !empty(current_node)
+            let path = current_node.path.str()
+            let name = current_node.path.getLastPathComponent(1)
+
+            " Подтверждение удаления
+            let choice = confirm("Удалить '" . name . "'?", "&Да\n&Нет", 2)
+            if choice == 1
+                " Удаляем файл или папку
+                if isdirectory(path)
+                    " Удаляем папку рекурсивно
+                    let cmd = 'rm -rf "' . path . '"'
+                else
+                    " Удаляем файл
+                    let cmd = 'rm "' . path . '"'
+                endif
+
+                " Выполняем удаление
+                let output = system(cmd)
+                if v:shell_error
+                    echo "Ошибка при удалении: " . output
+                else
+                    echo "Удалено: " . name
+                    " Обновляем NERDTree
+                    NERDTreeRefreshRoot
+                endif
+            endif
+        else
+            echo "Не выбран файл или папка"
+        endif
+    else
+        echo "Эта команда работает только в NERDTree"
+    endif
+endfunction
 
 " Ctrl + B - переключение между NERDTree и рабочим окном
 nnoremap <C-b> :call SwitchBetweenNERDTreeAndCode()<CR>
@@ -189,6 +315,57 @@ function! SwitchBetweenNERDTreeAndCode()
     endif
 endfunction
 
+" === НАСТРОЙКИ NERDTREE ДЛЯ РАБОТЫ С БУФЕРАМИ ===
+
+" Открывать файлы в фоновом режиме без переключения на них
+let g:NERDTreeQuitOnOpen = 0
+
+" Не закрывать NERDTree при открытии файла
+let g:NERDTreeAutoDeleteBuffer = 0
+
+" Автоматически обновлять NERDTree при сохранении файлов
+autocmd BufWritePost * if exists(':NERDTreeRefreshRoot') | NERDTreeRefreshRoot | endif
+
+" Показывать скрытые файлы
+let g:NERDTreeShowHidden = 1
+
+" Размер окна NERDTree
+let g:NERDTreeWinSize = 35
+
+" Автоматически обновлять корень при смене директории
+let g:NERDTreeChDirMode = 2
+
+" === ОТКЛЮЧЕНИЕ КЛАВИШ В NERDTREE ===
+
+" Отключить все клавиши создания/открытия файлов в NERDTree
+autocmd FileType nerdtree nnoremap <buffer> <C-o> <nop>
+autocmd FileType nerdtree nnoremap <buffer> <C-e> <nop>
+autocmd FileType nerdtree nnoremap <buffer> <C-p> <nop>
+autocmd FileType nerdtree nnoremap <buffer> <C-Tab> <nop>
+autocmd FileType nerdtree nnoremap <buffer> <M-o> <nop>
+
+" Явно разрешить F11 и F12 в NERDTree
+autocmd FileType nerdtree nnoremap <buffer> <C-n> :call CreateFileOrDirectoryInNERDTree()<CR>
+autocmd FileType nerdtree nnoremap <buffer> <C-d> :call DeleteFileOrDirectory()<CR>
+
+" === КОМАНДЫ ДЛЯ РАБОТЫ С БУФЕРАМИ ===
+
+" Показать список всех открытых буферов
+nnoremap <leader>bl :ls<CR>:b<space>
+
+" Закрыть текущий буфер
+nnoremap <leader>bd :bd<CR>
+
+" Закрыть все буферы кроме текущего
+nnoremap <leader>bo :%bd\|e#<CR>
+
+" Переключение между буферами по Tab (уже есть)
+" nnoremap <Tab> :bnext<CR>
+" nnoremap <S-Tab> :bprevious<CR>
+
+" Быстрое переключение между последними файлами (уже есть)
+" nnoremap <C-Tab> :b#<CR>
+
 " === РАБОТА С ФАЙЛАМИ И ПУТЯМИ ===
 
 " Ctrl + O - открыть файл с началом в текущей директории
@@ -202,6 +379,24 @@ inoremap <C-e> <Esc>:e <C-R>=expand("%:p:h") . "/" <CR>
 " Ctrl + P - поиск файла по имени из текущей директории
 nnoremap <C-p> :find *
 inoremap <C-p> <Esc>:find *
+
+" === УЛУЧШЕННОЕ СОЗДАНИЕ ФАЙЛОВ ===
+
+" Создать новый файл в текущей директории с обновлением NERDTree (только в рабочей области)
+function! CreateNewFile()
+    if &filetype != 'nerdtree'
+        let current_dir = expand("%:p:h")
+        let new_file = input('New file name: ', current_dir . '/')
+        if new_file != ''
+            execute 'edit ' . new_file
+            execute 'write'
+            " Обновляем NERDTree если он открыт
+            if exists(':NERDTreeRefreshRoot')
+                NERDTreeRefreshRoot
+            endif
+        endif
+    endif
+endfunction
 
 " === НАСТРОЙКИ TAB-ДОПОЛНЕНИЯ КАК В ТЕРМИНАЛЕ ===
 set wildmenu
@@ -235,28 +430,31 @@ cnoremap <expr> <S-Tab> wildmenumode() ? "\<Up>" : "\<S-Tab>"
 " Ctrl+Space для показа всех вариантов
 cnoremap <C-Space> <C-d>
 
-" === КОМАНДЫ ДЛЯ РАБОТЫ С ФАЙЛАМИ ===
+" Быстрое переключение между последними файлами (только в рабочей области)
+nnoremap <C-Tab> :call SafeBufferSwitch()<CR>
+inoremap <C-Tab> <Esc>:call SafeBufferSwitch()<CR>
 
-" Создать новый файл в текущей директории
-nnoremap <C-n> :e <C-R>=expand("%:p:h") . "/" <CR>
-
-" Быстрое переключение между последними файлами
-nnoremap <C-Tab> :b#<CR>
-inoremap <C-Tab> <Esc>:b#<CR>a
-
-" === ФУНКЦИЯ ДЛЯ БЕЗОПАСНОГО ОТКРЫТИЯ ФАЙЛОВ ===
-function! SafeEdit()
-    let file_path = input('Open file: ', '', 'file')
-    if file_path != ''
-        try
-            execute 'edit ' . fnameescape(file_path)
-        catch
-            echo "Error opening file: " . v:exception
-        endtry
+function! SafeBufferSwitch()
+    if &filetype != 'nerdtree'
+        :b#
     endif
 endfunction
 
-" Alt+O для безопасного открытия
+" === ФУНКЦИЯ ДЛЯ БЕЗОПАСНОГО ОТКРЫТИЯ ФАЙЛОВ ===
+function! SafeEdit()
+    if &filetype != 'nerdtree'
+        let file_path = input('Open file: ', '', 'file')
+        if file_path != ''
+            try
+                execute 'edit ' . fnameescape(file_path)
+            catch
+                echo "Error opening file: " . v:exception
+            endtry
+        endif
+    endif
+endfunction
+
+" Alt+O для безопасного открытия (только в рабочей области)
 nnoremap <M-o> :call SafeEdit()<CR>
 inoremap <M-o> <Esc>:call SafeEdit()<CR>
 
@@ -283,14 +481,8 @@ autocmd VimEnter * if argc() == 0 && !exists("s:std_in") | NERDTree | endif
 " Закрыть Vim если остался только NERDTree
 autocmd BufEnter * if tabpagenr('$') == 1 && winnr('$') == 1 && exists('b:NERDTree') && b:NERDTree.isTabTree() | quit | endif
 
-" Показывать скрытые файлы
-let g:NERDTreeShowHidden = 1
-
 " Игнорировать некоторые файлы
 let g:NERDTreeIgnore = ['\.pyc$', '__pycache__', '\.git$', '\.DS_Store']
-
-" Размер окна
-let g:NERDTreeWinSize = 35
 
 " Показывать строку статуса
 let g:NERDTreeStatusline = '%#NonText#'
@@ -300,7 +492,6 @@ let g:NERDTreeStatusline = '%#NonText#'
 " Отключить Tab/S-Tab в NERDTree чтобы не переключались буферы
 autocmd FileType nerdtree nnoremap <buffer> <Tab> <nop>
 autocmd FileType nerdtree nnoremap <buffer> <S-Tab> <nop>
-autocmd FileType nerdtree nnoremap <buffer> <C-Tab> <nop>
 
 " === АВТОЗАВЕРШЕНИЕ СКОБОК ===
 inoremap " ""<Left>
@@ -319,7 +510,6 @@ call plug#begin('~/.vim/plugged')
 Plug 'neoclide/coc.nvim', {'branch': 'release'}
 Plug 'jiangmiao/auto-pairs'
 Plug 'morhetz/gruvbox'
-Plug 'othree/html5-vim' 
 
 " Дополнительные полезные плагины
 Plug 'scrooloose/nerdtree'              " Файловый менеджер
@@ -328,6 +518,11 @@ Plug 'airblade/vim-gitgutter'           " Git статус на полях
 Plug 'vim-airline/vim-airline'          " Статус бар
 Plug 'vim-airline/vim-airline-themes'   " Темы для статус бара
 Plug 'cormacrelf/vim-colors-github'
+
+" === GIT И GITHUB ИНТЕГРАЦИЯ ===
+Plug 'tpope/vim-fugitive'      " Git интеграция
+Plug 'tpope/vim-rhubarb'       " GitHub интеграция
+
 call plug#end()
 
 " === НАСТРОЙКИ ПЛАГИНОВ ===
