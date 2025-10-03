@@ -16,10 +16,9 @@ vimconfig/
     ├── options.vim         # Опции Vim
     └── plugins.vim         # Плагины и их настройки
 
+```
 
-## ⚡ Быстрая установка
-
-### Автоматическая установка:
+### ⚡ Быстрая установка:
 ```bash
 cd ~/Desktop
 git clone https://github.com/dmitriiVin/vimconfig.git
