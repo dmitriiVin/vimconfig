@@ -208,17 +208,17 @@ inoremap <expr> <cr> pumvisible() ? "\<C-y>" : "\<cr>"
 
 " === GIT & GITHUB ===
 
-" Git status
+" \ + G + S - Git status
 nnoremap <leader>gs :Git<CR>
 
-" Git commit
+" \ + G + C - Git commit
 nnoremap <leader>gc :Git commit<CR>
 
-" Git push
+" \ + G + P - Git push
 nnoremap <leader>gp :Git push<CR>
 
-" Git pull
+" \ + G + L Git pull
 nnoremap <leader>gl :Git pull<CR>
 
-" Открыть текущий файл на GitHub через vim-rhubarb
+" \ + G + O Открыть текущий файл на GitHub через vim-rhubarb
 nnoremap <leader>go :GBrowse<CR>
