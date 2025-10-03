@@ -5,6 +5,7 @@
 ---
 
 ## 📂 Структура проекта
+```text
 vimconfig/
 ├── .vimrc # Главный конфиг Vim
 ├── installvimconfig.sh # Скрипт установки конфигурации
@@ -15,8 +16,6 @@ vimconfig/
 ├── mappings.vim # Настройки сочетаний клавиш
 ├── options.vim # Опции Vim
 └── plugins.vim # Плагины и их настройки
-
-text
 
 ---
 
