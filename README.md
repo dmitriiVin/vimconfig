@@ -16,7 +16,7 @@ vimconfig/
 ├── mappings.vim # Настройки сочетаний клавиш
 ├── options.vim # Опции Vim
 └── plugins.vim # Плагины и их настройки
-```text
+
 ---
 
 ## ⚡ Быстрая установка
