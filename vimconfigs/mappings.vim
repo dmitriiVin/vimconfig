@@ -75,23 +75,6 @@ nnoremap <F12> :call OpenCMakeLists()<CR>
 " Shift+F8 - Быстрый запуск
 nnoremap <S-F8> :call CMakeQuickRun()<CR>
 
-" === GIT КОМАНДЫ НА ФУНКЦИОНАЛЬНЫЕ КЛАВИШИ ===
-
-" Option + F1 - Git status (посмотреть что изменилось)
-"nnoremap <F6> :Git<CR>
-
-" Option + F2 - Git commit (закоммитить)
-"nnoremap <F7> :Git commit<CR>
-
-" Option + F3 - Git push (отправить на GitHub)
-"nnoremap <F8> :Git push<CR>
-
-" Option + F4 - Открыть текущий файл в GitHub
-"nnoremap <F9> :GBrowse<CR>
-
-" Option + F5 - Git pull (обновить с GitHub)
-"nnoremap <F10> :Git pull<CR>
-
 " === УПРАВЛЕНИЕ NERDTREE И БУФЕРАМИ ===
 
 " F1 - открыть/закрыть NERDTree
