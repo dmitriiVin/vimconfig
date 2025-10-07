@@ -6,7 +6,11 @@
 source ~/.vim/vimconfigs/autocmd.vim
 
 " === Подключаем функции ===
-source ~/.vim/vimconfigs/functions.vim
+source ~/.vim/vimconfigs/functions/cmake.vim
+source ~/.vim/vimconfigs/functions/nerdtree.vim
+source ~/.vim/vimconfigs/functions/runcode.vim
+source ~/.vim/vimconfigs/functions/terminal.vim
+source ~/.vim/vimconfigs/functions/github.vim
 
 " === Подключаем бинды ===
 source ~/.vim/vimconfigs/mappings.vim

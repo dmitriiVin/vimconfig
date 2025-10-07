@@ -3,6 +3,7 @@ syntax on
 set number
 set autoindent
 set smartindent
+set hidden
 
 " Настройка табуляции
 set tabstop=4
@@ -38,7 +39,6 @@ set linebreak
 "let g:cpp_attributes_highlight = 1
 "let g:cpp_member_highlight = 1
 
-
 " Глобальная переменная для хранения выбранного таргета
 let g:cmake_selected_target = ''
 
@@ -72,3 +72,9 @@ let g:NERDTreeStatusline = '%#NonText#'
 " Airline
 let g:airline_theme = 'gruvbox'
 let g:airline#extensions#tabline#enabled = 1
+
+" Открывать Git статус в том же окне
+let g:fugitive_UseSplit = 0
+
+" Для диффов
+let g:fugitive_DiffVertical = 0  " используем horizontal diff

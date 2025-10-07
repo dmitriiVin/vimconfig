@@ -21,3 +21,10 @@ autocmd BufEnter * if tabpagenr('$') == 1 && winnr('$') == 1 && exists('b:NERDTr
 " Отключить Tab/S-Tab в NERDTree чтобы не переключались буферы
 autocmd FileType nerdtree nnoremap <buffer> <Tab> <nop>
 autocmd FileType nerdtree nnoremap <buffer> <S-Tab> <nop>
+
+autocmd FileType nerdtree setlocal nobuflisted
+
+augroup GitCloseMapping
+    autocmd!
+    autocmd FileType git,gitcommit,gitrebase,gitconfig nnoremap <buffer> <C-q> :call GitSaveAndClose()<CR>
+augroup END

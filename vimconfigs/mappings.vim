@@ -3,9 +3,15 @@
 " Ctrl + S - сохранить файл
 inoremap <C-s> <Esc>:w<CR>a
 nnoremap <C-s> <Esc>:w<CR>a
+vnoremap <C-s> <Esc>:w<CR>a
 
 " Ctrl + Q - закрыть текущий файл в буфере
 nnoremap <C-q> :bp\|bd #<CR>
+
+" Ctrl + W - закрыть текущее сплит окно
+vnoremap <C-w> :q<CR>
+inoremap <C-w> :q<CR>
+nnoremap <C-w> :q<CR>
 
 " Ctrl + Shift + S - сохранить как
 nnoremap <C-S-s> :saveas 
@@ -86,13 +92,13 @@ nnoremap <F3> :NERDTreeFind<CR>
 " F4 - обновить NERDTree (чтобы видеть новые файлы)
 nnoremap <F4> :NERDTreeRefreshRoot<CR>
 
-" Ctrl + n - создать файл или папку в текущей папке NERDTree
+" Ctrl + N - создать файл или папку в текущей папке NERDTree
 nnoremap <C-n> :call CreateFileOrDirectoryInNERDTree()<CR>
 
-" Ctrl + d - удалить файл/папку в NERDTree
+" Ctrl + D - удалить файл/папку в NERDTree
 nnoremap <C-d> :call DeleteFileOrDirectory()<CR>
 
-" Ctrl + B - переключение между NERDTree и рабочим окном
+" Ctrl + B  - переключение между NERDTree и рабочим окном
 nnoremap <C-b> :call SwitchBetweenNERDTreeAndCode()<CR>
 
 " === РАБОТА С ФАЙЛАМИ И ПУТЯМИ ===
@@ -129,12 +135,8 @@ inoremap <M-o> <Esc>:call SafeEdit()<CR>
 " === ВАЖНЫЕ МАПИНГИ КОТОРЫЕ НЕ ЗАБИНЖЕНЫ ===
 
 " Быстрое переключение между последними файлами (только в рабочей области)
-nnoremap <C-Tab> :call SafeBufferSwitch()<CR>
-inoremap <C-Tab> <Esc>:call SafeBufferSwitch()<CR>
-
-" vim-commentary - Ctrl+/ для комментирования/раскомментирования кода
-noremap <C-/> :Commentary<CR>
-inoremap <C-/> <Esc>:Commentary<CR>a
+" nnoremap <C-Tab> :call SafeBufferSwitch()<CR>
+" inoremap <C-Tab> <Esc>:call SafeBufferSwitch()<CR>
 
 " Показать текущий выбранный таргет
 nnoremap <leader>ct :echo "Current target: " . (empty(g:cmake_selected_target) ? "none" : g:cmake_selected_target)<CR>
@@ -148,12 +150,12 @@ nnoremap <leader>bd :bd<CR>
 " Закрыть все буферы кроме текущего
 nnoremap <leader>bo :%bd\|e#<CR>
 
-" Переключение между буферами по Tab (уже есть)
-" nnoremap <Tab> :bnext<CR>
-" nnoremap <S-Tab> :bprevious<CR>
+" Переключение буферов без предупреждения о несохранённых изменениях
+nnoremap <silent> <Tab> :bnext!<CR>
+nnoremap <silent> <S-Tab> :bprevious!<CR>
 
 " Быстрое переключение между последними файлами (уже есть)
-" nnoremap <C-Tab> :b#<CR>
+nnoremap <C-Tab> :b#<CR>
 
 " Быстрая навигация по директориям
 nnoremap <leader>cd :cd %:p:h<CR>:pwd<CR>  " Перейти в директорию текущего файла
@@ -178,9 +180,9 @@ inoremap { {}<Left>
 inoremap <expr> " strpart(getline('.'), col('.')-1, 1) == '"' ? "\<Right>" : '""<Left>'
 inoremap <expr> ' strpart(getline('.'), col('.')-1, 1) == "'" ? "\<Right>" : "''<Left>"
 
-" vim-commentary - Ctrl+/ для комментирования/раскомментирования кода
-noremap <C-/> :Commentary<CR>
-inoremap <C-/> <Esc>:Commentary<CR>a
+" \ + C для комментирования/раскомментирования кода
+noremap <leader>c :Commentary<CR>
+inoremap <leader>c <Esc>:Commentary<CR>a
 
 " Tab для автодополнения
 inoremap <expr> <Tab> pumvisible() ? "\<C-y>" : "\<Tab>"
@@ -189,19 +191,19 @@ inoremap <expr> <S-Tab> pumvisible() ? "\<C-p>" : "\<S-Tab>"
 " Enter для подтверждения автодополнения
 inoremap <expr> <cr> pumvisible() ? "\<C-y>" : "\<cr>"
 
-" === GIT & GITHUB ===
+" === GIT & GITHUB (ОДИН БУФЕР) ===
 
-" \ + G + S - Git status
+" \ + G + S - Git status в единственном буфере
 nnoremap <leader>gs :Git<CR>
 
-" \ + G + C - Git commit
+" \ + G + C - Git commit в единственном буфере
 nnoremap <leader>gc :Git commit<CR>
 
 " \ + G + P - Git push
 nnoremap <leader>gp :Git push<CR>
 
-" \ + G + L Git pull
+" \ + G + U - Git pull
 nnoremap <leader>gl :Git pull<CR>
 
-" \ + G + O Открыть текущий файл на GitHub через vim-rhubarb
+" \ + G + O - Открыть на GitHub в браузере
 nnoremap <leader>go :GBrowse<CR>

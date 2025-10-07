@@ -9,9 +9,15 @@ vimconfig/
 ├── .vimrc                  # Главный конфиг Vim
 ├── installvimconfig.sh     # Скрипт установки конфигурации
 ├── README.md               # Эта документация
-└── vimconfigs/             # Модульные конфигурационные файлы
+└── vimconfigs/ 
+    |    |
+    |    └─functions/       # Папка с функциями
+    |        ├── cmake.vim
+    |        ├── github.vim
+    |        ├── nerdtree.vim
+    |        ├── runcode.vim
+    |        └── terminal.vim
     ├── autocmd.vim         # Автоматические команды
-    ├── functions.vim       # Пользовательские функции
     ├── mappings.vim        # Настройки сочетаний клавиш
     ├── options.vim         # Опции Vim
     └── plugins.vim         # Плагины и их настройки
