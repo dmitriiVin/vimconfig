@@ -83,10 +83,10 @@ cp .vimrc ~/
 
 | Сочетание | Действие |
 |-----------|----------|
-| `Leader + gs` | Git status |
-| `Leader + gc` | Git commit |
-| `Leader + gp` | Git push |
-| `Leader + gl` | Git pull |
+| `Leader + gs` | `Git status` |
+| `Leader + gc` | `Git commit` |
+| `Leader + gp` | `Git push` |
+| `Leader + gl` | `Git pull` |
 | `Leader + go` | Открыть файл на GitHub |
 
 5. 🏗️ CMake проекты
@@ -131,29 +131,32 @@ cp .vimrc ~/
 nnoremap <F5> :call RunCode()<CR>
 ```
 Поддерживаемые языки:
+```
 	•	C++: clang++ -std=c++17 -O2 -Wall
 	•	C: clang -std=c99 -O2 -Wall
 	•	Python: python3
 	•	JavaScript: node
 	•	Pascal: fpc
-
+```
 ⸻
 
 🎨 Цветовые схемы
 
 Доступные темы:
+```
 	•	gruvbox (темная тема)
 	•	github (тема GitHub Dark через плагин)
-
+```
 Активация темы (должна быть загружена после плагинов!):
-
+```
 colorscheme github
 set background=dark
-
+```
 
 ⸻
 
 🔌 Основные плагины
+```
 	•	coc.nvim - автодополнение и LSP
 	•	nerdtree - файловый менеджер
 	•	vim-fugitive - интеграция с Git
@@ -162,7 +165,7 @@ set background=dark
 	•	vim-commentary - комментирование кода
 	•	auto-pairs - автозавершение скобок
 	•	vim-airline - статусная строка
-
+```
 ⸻
 
 💡 Новые улучшения
