@@ -34,6 +34,9 @@ set nocursorline                " или полностью отключаем
 set wrap
 set linebreak
 
+let g:cmake_build_type = 'Debug'
+let g:cmake_selected_target = ''
+
 " === ПОДСВЕТКА СИНТАКСИСА C++ ===
 
 "let g:cpp_attributes_highlight = 1

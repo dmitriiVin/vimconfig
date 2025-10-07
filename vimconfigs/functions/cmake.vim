@@ -1,117 +1,88 @@
-" === Создание/открытие CMakeLists.txt в выбранной папке NERDTree ===
-function! CreateCMakeListsInNERDTree()
-    if &filetype !=# 'nerdtree'
-        echo "⚠️ Эта команда работает только в NERDTree"
-        return
-    endif
-
-    " Получаем путь к текущему узлу NERDTree
-    let current_path = g:NERDTreeFileNode.GetSelected().path.str()
-    if empty(current_path)
-        echo "⚠️ Не удалось получить путь"
-        return
-    endif
-
-    " Определяем директорию
-    if isdirectory(current_path)
-        let target_dir = current_path
-    else
-        let target_dir = fnamemodify(current_path, ':h')
-    endif
-
-    " Путь к файлу CMakeLists.txt
-    let cmake_file = target_dir . '/CMakeLists.txt'
-
-    " Если файла нет — создаём
-    if !filereadable(cmake_file)
-        call system('touch ' . fnameescape(cmake_file))
-        if v:shell_error
-            echo "❌ Ошибка при создании файла: " . cmake_file
-            return
-        else
-            echo "💾 Создан файл: " . cmake_file
-            " Обновляем NERDTree
-            NERDTreeRefreshRoot
-        endif
-    endif
-
-    " Открываем файл в рабочем окне (NERDTree остаётся открытым)
-    if winnr('$') > 1
-        wincmd p
-        execute 'edit' fnameescape(cmake_file)
-    else
-        execute 'vsplit' fnameescape(cmake_file)
-    endif
+" === Подсветка сообщений ===
+function! s:echo_info(msg)
+    echohl Directory | echom a:msg | echohl None
 endfunction
 
-" === Генерация CMake для текущего CMakeLists.txt ===
-function! CMakeGenerateLocal()
+function! s:echo_success(msg)
+    echohl Question | echom a:msg | echohl None
+endfunction
+
+function! s:echo_warn(msg)
+    echohl WarningMsg | echom a:msg | echohl None
+endfunction
+
+function! s:echo_error(msg)
+    echohl ErrorMsg | echom a:msg | echohl None
+endfunction
+
+" === Генерация CMake (F6) ===
+function! CMakeGenerateFixed()
     let cmake_file = expand('%:p')
     if fnamemodify(cmake_file, ':t') !=# 'CMakeLists.txt'
-        echo "⚠️ Выберите CMakeLists.txt для генерации"
+        call s:echo_warn("⚠️  Выбери CMakeLists.txt")
         return
     endif
 
     let cmake_dir = fnamemodify(cmake_file, ':h')
-    let debug_dir = cmake_dir . '/Debug'
+    let build_dir = cmake_dir . '/' . g:cmake_build_type
 
-    if !isdirectory(debug_dir)
-        call system('mkdir -p ' . fnameescape(debug_dir))
+    if !isdirectory(build_dir)
+        call system('mkdir -p ' . fnameescape(build_dir))
     endif
 
-    let cmd = 'cd ' . fnameescape(debug_dir) . ' && cmake ..'
-    echo "Running: " . cmd
+    let cmd = 'cd ' . fnameescape(build_dir) . ' && cmake -DCMAKE_BUILD_TYPE=' . g:cmake_build_type . ' ..'
+    call s:echo_info("🔧 Генерация (" . g:cmake_build_type . ")...")
     let result = system(cmd)
-    echo result
+    echom result
 
     if v:shell_error == 0
-        echo "✓ CMake generated successfully in " . debug_dir
+        call s:echo_success("✅ Успешно сгенерировано → " . build_dir)
     else
-        echo "✗ CMake generation failed in " . debug_dir
+        call s:echo_error("❌ Ошибка при генерации в " . build_dir)
     endif
 endfunction
 
-" === Сборка для текущего CMakeLists.txt ===
-function! CMakeBuildLocal()
+" === Сборка (F7) ===
+function! CMakeBuildFixed()
     let cmake_file = expand('%:p')
     if fnamemodify(cmake_file, ':t') !=# 'CMakeLists.txt'
-        echo "⚠️ Выберите CMakeLists.txt для сборки"
+        call s:echo_warn("⚠️  Выбери CMakeLists.txt")
         return
     endif
 
     let cmake_dir = fnamemodify(cmake_file, ':h')
-    let debug_dir = cmake_dir . '/Debug'
+    let build_dir = cmake_dir . '/' . g:cmake_build_type
 
-    if !isdirectory(debug_dir)
-        echo "⚠️ Сначала сгенерируйте проект через CMakeGenerateLocal()"
+    if !isdirectory(build_dir)
+        call s:echo_warn("⚠️  Сначала запусти генерацию (F6)")
         return
     endif
 
-    let cmd = 'cd ' . fnameescape(debug_dir) . ' && make -j4'
-    echo "Running: " . cmd
+    let cmd = 'cd ' . fnameescape(build_dir) . ' && make -j4'
+    call s:echo_info("⚙️  Сборка (" . g:cmake_build_type . ")...")
     let result = system(cmd)
-    echo result
+    echom result
 
     if v:shell_error == 0
-        echo "✓ Build successful in " . debug_dir
+        call s:echo_success("✅ Сборка успешна в " . build_dir)
     else
-        echo "✗ Build failed in " . debug_dir
+        call s:echo_error("❌ Сборка не удалась")
     endif
 endfunction
 
-" --- Выбор исполняемого файла (F8) ---
+" === Выбор исполняемого файла (F8) ===
 function! CMakeSelectTargetInteractive()
-    if !isdirectory('Debug')
-        echo "⚠️ Нет папки Debug. Сначала вызови CMakeGenerate (F6)."
+    let build_dir = g:cmake_build_type
+    if !isdirectory(build_dir)
+        call s:echo_warn("⚠️  Нет папки " . build_dir . ". Сначала сгенерируй проект (F6).")
         return
     endif
 
-    " Ищем все исполняемые файлы
-    let all_executables = systemlist('find Debug -type f -perm +111 2>/dev/null')
+    let all_executables = systemlist('find ' . build_dir . ' -type f -perm +111 2>/dev/null')
     call filter(all_executables, 'v:val !~# "CMakeFiles"')
 
     if empty(all_executables)
-        echo "❌ Исполняемые файлы не найдены."
+        call s:echo_error("❌ Исполняемые файлы не найдены.")
         return
     endif
 
@@ -125,43 +96,72 @@ function! CMakeSelectTargetInteractive()
     let choice = input('Номер: ')
     if choice =~ '^\d\+$' && choice >= 1 && choice <= len(all_executables)
         let g:cmake_selected_target = all_executables[choice - 1]
-        echo "✅ Выбран: " . g:cmake_selected_target
+        call s:echo_success("✅ Выбран: " . g:cmake_selected_target)
     else
-        echo "🚫 Неверный выбор."
+        call s:echo_warn("🚫 Неверный выбор.")
     endif
 endfunction
 
-" --- Запуск выбранного таргета (F9) ---
+" === Запуск выбранного таргета (F9) ===
 function! CMakeRunFixed()
     if empty(g:cmake_selected_target)
-        echo "⚠️ Сначала выбери исполняемый файл (F8)."
-        return
+        let auto_exe = systemlist('find ' . g:cmake_build_type . ' -type f -perm +111 2>/dev/null | grep -v CMakeFiles | head -1')
+        if !empty(auto_exe)
+            let g:cmake_selected_target = auto_exe[0]
+            call s:echo_info("✅ Автоматически выбран: " . g:cmake_selected_target)
+        else
+            call s:echo_warn("⚠️  Исполняемый файл не найден (сначала F8 или сборка)")
+            return
+        endif
     endif
 
     if !filereadable(g:cmake_selected_target)
-        echo "❌ Файл не найден: " . g:cmake_selected_target
+        call s:echo_error("❌ Файл не найден: " . g:cmake_selected_target)
         return
     endif
 
-    let exe = g:cmake_selected_target
-    echo "🚀 Запуск: " . exe
-    execute '!./' . exe
+    let exe_dir = fnamemodify(g:cmake_selected_target, ':h')
+    let exe_name = fnamemodify(g:cmake_selected_target, ':t')
+
+    call s:echo_info("🚀 Запуск: " . exe_name . " (" . g:cmake_build_type . ")")
+    execute '!cd ' . exe_dir . ' && ./' . exe_name
 endfunction
 
-" --- Быстрый запуск (Shift+F8): генерировать + билд + автозапуск ---
+" === Переключатель режима сборки (F10) ===
+function! CMakeToggleBuildType()
+    if g:cmake_build_type ==# 'Debug'
+        let g:cmake_build_type = 'Release'
+    else
+        let g:cmake_build_type = 'Debug'
+    endif
+    call s:echo_info("🔁 Режим сборки: " . g:cmake_build_type)
+endfunction
+
+" === Быстрый запуск (\ + R + U) ===
 function! CMakeQuickRun()
-    if !isdirectory('Debug')
+    if !isdirectory(g:cmake_build_type)
         call CMakeGenerateFixed()
     endif
 
     call CMakeBuildFixed()
 
-    let auto_exe = systemlist('find Debug -type f -perm +111 2>/dev/null | grep -v CMakeFiles | head -1')
+    let auto_exe = systemlist('find ' . g:cmake_build_type . ' -type f -perm +111 2>/dev/null | grep -v CMakeFiles | head -1')
     if !empty(auto_exe)
         let g:cmake_selected_target = auto_exe[0]
-        echo "✅ Автоматически выбран: " . g:cmake_selected_target
+        call s:echo_info("✅ Автоматически выбран: " . g:cmake_selected_target)
         call CMakeRunFixed()
     else
-        echo "⚠️ Не найден исполняемый файл."
+        call s:echo_warn("⚠️  Не найден исполняемый файл.")
+    endif
+endfunction
+
+" === ПОКАЗАТЬ ТЕКУЩИЙ ТИП СБОРКИ (DEBUG / RELEASE) (\ + B + T) ===
+nnoremap <leader>bt :call ShowCMakeBuildType()<CR>
+
+function! ShowCMakeBuildType()
+    if exists("g:cmake_build_type")
+        echo "Current CMake Build Type: " . g:cmake_build_type
+    else
+        echo "Build type not set (default: Debug)"
     endif
 endfunction

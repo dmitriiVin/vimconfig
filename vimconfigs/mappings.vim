@@ -64,10 +64,10 @@ nnoremap <F5> :call RunCode()<CR>
 " === КОМАНДЫ ДЛЯ CMAKE (ЛОКАЛЬНЫЕ ПО CMakeLists.txt) ===
 
 " F6 - Генерация CMake в текущей директории CMakeLists.txt
-nnoremap <F6> :call CMakeGenerateLocal()<CR>
+nnoremap <F6> :call CMakeGenerateFixed()<CR>
 
 " F7 - Сборка проекта
-nnoremap <F7> :call CMakeBuildLocal()<CR>
+nnoremap <F7> :call CMakeBuildFixed()<CR>
 
 " F8 - Выбор таргета из текущего Debug
 nnoremap <F8> :call CMakeSelectTargetInteractive()<CR>
@@ -75,14 +75,17 @@ nnoremap <F8> :call CMakeSelectTargetInteractive()<CR>
 " F9 - Запуск выбранного таргета
 nnoremap <F9> :call CMakeRunFixed()<CR>
 
+" F10 - переключение с debug на Release и наоборот
+nnoremap <F10> :call CMakeToggleBuildType()<CR>
+
 " F12 - Создание/открытие CMakeLists.txt в папке NERDTree без закрытия NERDTree
 nnoremap <F12> :call CreateCMakeListsInNERDTree()<CR>
 
-" Shift+F8 - Быстрый запуск: генерация + сборка + запуск первого исполняемого файла
-nnoremap <S-F8> :call CMakeQuickRun()<CR>
+" \ + R + U - Быстрый запуск: генерация + сборка + запуск первого исполняемого файла
+nnoremap <leader>ru :call CMakeQuickRun()<CR>
 
-" Shift+F8 - Быстрый запуск
-nnoremap <S-F8> :call CMakeQuickRun()<CR>
+" \ + B + T ПОКАЗАТЬ ТЕКУЩИЙ ТИП СБОРКИ (DEBUG / RELEASE)
+nnoremap <leader>bt :call ShowCMakeBuildType()<CR>
 
 " === УПРАВЛЕНИЕ NERDTREE И БУФЕРАМИ ===
 
