@@ -19,7 +19,19 @@ function! RunCode()
         execute '!node' filename
     elseif &filetype == 'pascal'
         execute '!fpc' filename '&& ./' . basename
+    elseif &filetype == 'sh' || &filetype == 'bash'
+        " Для shell скриптов
+        if !executable(filename)
+            execute '!chmod +x' filename '&& ./' . filename
+        else
+            execute '!./' . filename
+        endif
     else
-        echo "Unsupported file type:" &filetype
+        " Пытаемся запустить как бинарный файл
+        if executable(filename)
+            execute '!./' . filename
+        else
+            echo "Unsupported file type:" &filetype
+        endif
     endif
 endfunction

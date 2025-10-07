@@ -1,198 +1,167 @@
-"=== Open CMakeLists === 
-function!OpenCMakeLists()
-    if &filetype == 'nerdtree'
-        " В NERDTree ничего не делаем
-        return
-    else
-        " В обычном буфере открываем CMakeLists.txt
-        :e CMakeLists.txt
-    endif
-endfunction
-
-" === ФУНКЦИЯ ГЕНЕРАЦИИ ===
-function! CMakeGenerateFixed()
-    " Создаем папку Debug если нужно
-    if !isdirectory('Debug')
-        call system('mkdir -p Debug')
-    endif
-    
-    " Запускаем CMake генерацию
-    let cmd = 'cd Debug && cmake ..'
-    echo "Running: " . cmd
-    let result = system(cmd)
-    echo result
-    
-    if v:shell_error == 0
-        echo "✓ CMake generated successfully!"
-    else
-        echo "✗ CMake generation failed"
-    endif
-endfunction
-
-" === ФУНКЦИЯ БИЛДА ===
-function! CMakeBuildFixed()
-    if !isdirectory('Debug')
-        echo "Run CMakeGenerate first! (F6)"
+" === Создание/открытие CMakeLists.txt в выбранной папке NERDTree ===
+function! CreateCMakeListsInNERDTree()
+    if &filetype !=# 'nerdtree'
+        echo "⚠️ Эта команда работает только в NERDTree"
         return
     endif
 
-    " Запускаем сборку
-    let cmd = 'cd Debug && make -j4'
-    echo "Running: " . cmd
-    let result = system(cmd)
-    echo result
+    " Получаем путь к текущему узлу NERDTree
+    let current_path = g:NERDTreeFileNode.GetSelected().path.str()
+    if empty(current_path)
+        echo "⚠️ Не удалось получить путь"
+        return
+    endif
 
-    if v:shell_error == 0
-        echo "✓ Build successful!"
+    " Определяем директорию
+    if isdirectory(current_path)
+        let target_dir = current_path
+    else
+        let target_dir = fnamemodify(current_path, ':h')
+    endif
 
-        " Показываем что собралось
-        let executables = system('find Debug -type f -executable 2>/dev/null')
-        if !empty(executables)
-            echo "Built executables:"
-            echo executables
+    " Путь к файлу CMakeLists.txt
+    let cmake_file = target_dir . '/CMakeLists.txt'
+
+    " Если файла нет — создаём
+    if !filereadable(cmake_file)
+        call system('touch ' . fnameescape(cmake_file))
+        if v:shell_error
+            echo "❌ Ошибка при создании файла: " . cmake_file
+            return
+        else
+            echo "💾 Создан файл: " . cmake_file
+            " Обновляем NERDTree
+            NERDTreeRefreshRoot
         endif
+    endif
+
+    " Открываем файл в рабочем окне (NERDTree остаётся открытым)
+    if winnr('$') > 1
+        wincmd p
+        execute 'edit' fnameescape(cmake_file)
     else
-        echo "✗ Build failed"
+        execute 'vsplit' fnameescape(cmake_file)
     endif
 endfunction
 
-" === ФУНКЦИЯ ВЫБОРА ТАРГЕТА ===
+" === Генерация CMake для текущего CMakeLists.txt ===
+function! CMakeGenerateLocal()
+    let cmake_file = expand('%:p')
+    if fnamemodify(cmake_file, ':t') !=# 'CMakeLists.txt'
+        echo "⚠️ Выберите CMakeLists.txt для генерации"
+        return
+    endif
+
+    let cmake_dir = fnamemodify(cmake_file, ':h')
+    let debug_dir = cmake_dir . '/Debug'
+
+    if !isdirectory(debug_dir)
+        call system('mkdir -p ' . fnameescape(debug_dir))
+    endif
+
+    let cmd = 'cd ' . fnameescape(debug_dir) . ' && cmake ..'
+    echo "Running: " . cmd
+    let result = system(cmd)
+    echo result
+
+    if v:shell_error == 0
+        echo "✓ CMake generated successfully in " . debug_dir
+    else
+        echo "✗ CMake generation failed in " . debug_dir
+    endif
+endfunction
+
+" === Сборка для текущего CMakeLists.txt ===
+function! CMakeBuildLocal()
+    let cmake_file = expand('%:p')
+    if fnamemodify(cmake_file, ':t') !=# 'CMakeLists.txt'
+        echo "⚠️ Выберите CMakeLists.txt для сборки"
+        return
+    endif
+
+    let cmake_dir = fnamemodify(cmake_file, ':h')
+    let debug_dir = cmake_dir . '/Debug'
+
+    if !isdirectory(debug_dir)
+        echo "⚠️ Сначала сгенерируйте проект через CMakeGenerateLocal()"
+        return
+    endif
+
+    let cmd = 'cd ' . fnameescape(debug_dir) . ' && make -j4'
+    echo "Running: " . cmd
+    let result = system(cmd)
+    echo result
+
+    if v:shell_error == 0
+        echo "✓ Build successful in " . debug_dir
+    else
+        echo "✗ Build failed in " . debug_dir
+    endif
+endfunction
+
+" --- Выбор исполняемого файла (F8) ---
 function! CMakeSelectTargetInteractive()
     if !isdirectory('Debug')
-        echo "CMake not configured. Run CMakeGenerate first. (F6)"
+        echo "⚠️ Нет папки Debug. Сначала вызови CMakeGenerate (F6)."
         return
     endif
 
-    " Ищем ВСЕ файлы в Debug (не только исполняемые)
-    let all_files = system('find Debug -type f | grep -v CMakeFiles | head -20')
-    let files = split(all_files, '\n')
-    call filter(files, 'v:val != ""')
-    
-    if empty(files)
-        echo "No files found in Debug directory."
+    " Ищем все исполняемые файлы
+    let all_executables = systemlist('find Debug -type f -perm +111 2>/dev/null')
+    call filter(all_executables, 'v:val !~# "CMakeFiles"')
+
+    if empty(all_executables)
+        echo "❌ Исполняемые файлы не найдены."
         return
     endif
 
-    " Показываем список файлов
-    echo "Files in Debug directory:"
+    echo "Выбери исполняемый файл:"
     let i = 1
-    let executable_files = []
-    
-    for file in files
-        let filename = fnamemodify(file, ':t')
-        echo i . ". " . filename . "  (" . file . ")"
-        
-        " Проверяем является ли файл исполняемым
-        if executable(file)
-            call add(executable_files, file)
-        endif
-        
+    for exe in all_executables
+        echo i . '. ' . exe
         let i += 1
     endfor
 
-    " Если нашли исполняемые файлы, показываем их отдельно
-    if !empty(executable_files)
-        echo ""
-        echo "Executable files (recommended):"
-        let j = 1
-        for exe_file in executable_files
-            let exe_name = fnamemodify(exe_file, ':t')
-            echo "E" . j . ". " . exe_name . "  [EXECUTABLE]"
-            let j += 1
-        endfor
-    endif
-
-    echo ""
-    let choice = input('Select file (number) or "E" for executable: ')
-    
-    let selected_file = ''
-    
-    if choice =~ '^[Ee]\?\d\+$'
-        if choice =~ '^[Ee]'
-            " Выбор исполняемого файла
-            let num = substitute(choice, '^[Ee]', '', '')
-            if num >= 1 && num <= len(executable_files)
-                let selected_file = executable_files[num - 1]
-            endif
-        else
-            " Выбор любого файла по номеру
-            if choice >= 1 && choice <= len(files)
-                let selected_file = files[choice - 1]
-            endif
-        endif
+    let choice = input('Номер: ')
+    if choice =~ '^\d\+$' && choice >= 1 && choice <= len(all_executables)
+        let g:cmake_selected_target = all_executables[choice - 1]
+        echo "✅ Выбран: " . g:cmake_selected_target
     else
-        " Поиск файла по имени
-        for file in files
-            if fnamemodify(file, ':t') == choice
-                let selected_file = file
-                break
-            endif
-        endfor
-    endif
-
-    if !empty(selected_file)
-        let g:cmake_selected_target = selected_file
-        let target_name = fnamemodify(selected_file, ':t')
-        echo "✓ Target set to: " . target_name
-        echo "  Full path: " . selected_file
-    else
-        echo "Invalid selection"
+        echo "🚫 Неверный выбор."
     endif
 endfunction
 
-
-" === ФУНКЦИЯ ЗАПУСКА ===
+" --- Запуск выбранного таргета (F9) ---
 function! CMakeRunFixed()
     if empty(g:cmake_selected_target)
-        echo "No target selected. Run CMakeSelectTarget first! (F8)"
+        echo "⚠️ Сначала выбери исполняемый файл (F8)."
         return
     endif
-    
+
     if !filereadable(g:cmake_selected_target)
-        echo "File not found: " . g:cmake_selected_target
+        echo "❌ Файл не найден: " . g:cmake_selected_target
         return
     endif
-    
-    let target_name = fnamemodify(g:cmake_selected_target, ':t')
-    echo "Running: " . target_name
-    
-    " Проверяем права на выполнение
-    if !executable(g:cmake_selected_target)
-        echo "File is not executable. Trying to make executable..."
-        call system('chmod +x ' . shellescape(g:cmake_selected_target))
-    endif
-    
-    " Запускаем
-    execute '!./' . g:cmake_selected_target
+
+    let exe = g:cmake_selected_target
+    echo "🚀 Запуск: " . exe
+    execute '!./' . exe
 endfunction
 
-" === БЫСТРЫЙ ЗАПУСК ===
+" --- Быстрый запуск (Shift+F8): генерировать + билд + автозапуск ---
 function! CMakeQuickRun()
-    " Сначала генерируем если нужно
     if !isdirectory('Debug')
-        echo "Generating CMake..."
         call CMakeGenerateFixed()
-        sleep 2
     endif
-    
-    " Собираем
-    echo "Building project..."
+
     call CMakeBuildFixed()
-    sleep 2
-    
-    " Автоматически выбираем первый исполняемый файл
-    let executables = system('find Debug -type f -executable 2>/dev/null | head -1')
-    let exe_files = split(executables, '\n')
-    
-    if !empty(exe_files)
-        let g:cmake_selected_target = exe_files[0]
-        let target_name = fnamemodify(exe_files[0], ':t')
-        echo "✓ Auto-selected: " . target_name
-        sleep 1
-        
-        " Запускаем
+
+    let auto_exe = systemlist('find Debug -type f -perm +111 2>/dev/null | grep -v CMakeFiles | head -1')
+    if !empty(auto_exe)
+        let g:cmake_selected_target = auto_exe[0]
+        echo "✅ Автоматически выбран: " . g:cmake_selected_target
         call CMakeRunFixed()
     else
-        echo "No executables found. Please select target manually (F8)"
+        echo "⚠️ Не найден исполняемый файл."
     endif
 endfunction
