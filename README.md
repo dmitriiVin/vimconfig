@@ -1,6 +1,3 @@
-⸻
-
-
 # VimConfig
 
 
@@ -34,16 +31,16 @@ cd ~/Desktop
 git clone https://github.com/dmitriiVin/vimconfig.git
 cd vimconfig
 ./installvimconfig.sh
-
+```
 🛠 Ручная установка
-
+```bash
 # Копирование конфигурации
 cp -r vimconfigs ~/.vim/
 cp .vimrc ~/
 
 # Установка плагинов (внутри Vim)
 :PlugInstall
-
+```
 
 ⸻
 
