@@ -155,6 +155,66 @@ function! CMakeToggleBuildType()
     call s:echo_info("🔁 Режим сборки: " . g:cmake_build_type)
 endfunction
 
+" F12 - Создание/открытие CMakeLists.txt в папке NERDTree без закрытия NERDTree
+function! CreateCMakeListsInNERDTree()
+    if &filetype == 'nerdtree'
+        " Получаем путь к текущему узлу NERDTree
+        let current_path = g:NERDTreeFileNode.GetSelected().path.str()
+        if empty(current_path)
+            echo "Не удалось получить путь"
+            return
+        endif
+        
+        " Определяем директорию
+        if isdirectory(current_path)
+            let target_dir = current_path
+        else
+            let target_dir = fnamemodify(current_path, ':h')
+        endif
+        
+        let cmake_file = target_dir . '/CMakeLists.txt'
+        
+        " Создаем файл если не существует
+        if !filereadable(cmake_file)
+            " Создаем файл с базовым содержимым
+            let basic_content = [
+                \ 'cmake_minimum_required(VERSION 3.10)',
+                \ '',
+                \ '# Название проекта',
+                \ 'project(MyProject)',
+                \ '',
+                \ '# Настройка стандарта C++',
+                \ 'set(CMAKE_CXX_STANDARD 17)',
+                \ 'set(CMAKE_CXX_STANDARD_REQUIRED ON)',
+                \ '',
+                \ '# Добавьте ваши исходные файлы здесь',
+                \ '# add_executable(${PROJECT_NAME} main.cpp)'
+                \ ]
+            call writefile(basic_content, cmake_file)
+            echo "Создан CMakeLists.txt с базовым конфигом"
+        else
+            echo "CMakeLists.txt уже существует"
+        endif
+        
+        " Обновляем NERDTree
+        NERDTreeRefreshRoot
+        
+        " Переходим в основное окно (рабочую область) перед открытием файла
+        wincmd p  " Переход к предыдущему окну
+        
+        " Если все еще в NERDTree, значит нет других окон - создаем новое
+        if &filetype == 'nerdtree'
+            wincmd l  " Создаем новое окно справа
+        endif
+        
+        " Открываем файл в рабочей области
+        execute 'edit ' . fnameescape(cmake_file)
+        
+    else
+        echo "Эта команда работает только в NERDTree"
+    endif
+endfunction
+
 " === Быстрый запуск (\ + R + U) ===
 function! CMakeQuickRun()
     let cmake_file = expand('%:p')
@@ -179,5 +239,14 @@ function! CMakeQuickRun()
         call CMakeRunFixed()
     else
         call s:echo_warn("⚠️  Не найден исполняемый файл.")
+    endif
+endfunction
+
+" ==== ПОКАЗАТЬ ТЕККУЩИЙ ТИП СБОРКИ ===
+function! ShowCMakeBuildType()
+    if exists("g:cmake_build_type")
+        call s:echo_success("✅ Текущий тип сборки: " . g:cmake_build_type)
+    else
+        call s:echo_warn("⚠️  Тип сборки не установлен (по умолчанию: Debug)")
     endif
 endfunction
