@@ -72,17 +72,26 @@ endfunction
 
 " === Выбор исполняемого файла (F8) ===
 function! CMakeSelectTargetInteractive()
-    let build_dir = g:cmake_build_type
+    let cmake_file = expand('%:p')
+    if fnamemodify(cmake_file, ':t') !=# 'CMakeLists.txt'
+        call s:echo_warn("⚠️  Выбери CMakeLists.txt")
+        return
+    endif
+
+    let cmake_dir = fnamemodify(cmake_file, ':h')
+    let build_dir = cmake_dir . '/' . g:cmake_build_type
+
     if !isdirectory(build_dir)
         call s:echo_warn("⚠️  Нет папки " . build_dir . ". Сначала сгенерируй проект (F6).")
         return
     endif
 
-    let all_executables = systemlist('find ' . build_dir . ' -type f -perm +111 2>/dev/null')
+    " Исправленный поиск исполняемых файлов
+    let all_executables = systemlist('find ' . fnameescape(build_dir) . ' -type f -executable ! -type d 2>/dev/null')
     call filter(all_executables, 'v:val !~# "CMakeFiles"')
 
     if empty(all_executables)
-        call s:echo_error("❌ Исполняемые файлы не найдены.")
+        call s:echo_error("❌ Исполняемые файлы не найдены в " . build_dir)
         return
     endif
 
@@ -105,7 +114,16 @@ endfunction
 " === Запуск выбранного таргета (F9) ===
 function! CMakeRunFixed()
     if empty(g:cmake_selected_target)
-        let auto_exe = systemlist('find ' . g:cmake_build_type . ' -type f -perm +111 2>/dev/null | grep -v CMakeFiles | head -1')
+        let cmake_file = expand('%:p')
+        if fnamemodify(cmake_file, ':t') !=# 'CMakeLists.txt'
+            call s:echo_warn("⚠️  Выбери CMakeLists.txt")
+            return
+        endif
+
+        let cmake_dir = fnamemodify(cmake_file, ':h')
+        let build_dir = cmake_dir . '/' . g:cmake_build_type
+
+        let auto_exe = systemlist('find ' . fnameescape(build_dir) . ' -type f -executable ! -type d 2>/dev/null | grep -v CMakeFiles | head -1')
         if !empty(auto_exe)
             let g:cmake_selected_target = auto_exe[0]
             call s:echo_info("✅ Автоматически выбран: " . g:cmake_selected_target)
@@ -124,7 +142,7 @@ function! CMakeRunFixed()
     let exe_name = fnamemodify(g:cmake_selected_target, ':t')
 
     call s:echo_info("🚀 Запуск: " . exe_name . " (" . g:cmake_build_type . ")")
-    execute '!cd ' . exe_dir . ' && ./' . exe_name
+    execute '!cd ' . fnameescape(exe_dir) . ' && ./' . fnameescape(exe_name)
 endfunction
 
 " === Переключатель режима сборки (F10) ===
@@ -139,29 +157,27 @@ endfunction
 
 " === Быстрый запуск (\ + R + U) ===
 function! CMakeQuickRun()
-    if !isdirectory(g:cmake_build_type)
+    let cmake_file = expand('%:p')
+    if fnamemodify(cmake_file, ':t') !=# 'CMakeLists.txt'
+        call s:echo_warn("⚠️  Выбери CMakeLists.txt")
+        return
+    endif
+
+    let cmake_dir = fnamemodify(cmake_file, ':h')
+    let build_dir = cmake_dir . '/' . g:cmake_build_type
+
+    if !isdirectory(build_dir)
         call CMakeGenerateFixed()
     endif
 
     call CMakeBuildFixed()
 
-    let auto_exe = systemlist('find ' . g:cmake_build_type . ' -type f -perm +111 2>/dev/null | grep -v CMakeFiles | head -1')
+    let auto_exe = systemlist('find ' . fnameescape(build_dir) . ' -type f -executable ! -type d 2>/dev/null | grep -v CMakeFiles | head -1')
     if !empty(auto_exe)
         let g:cmake_selected_target = auto_exe[0]
         call s:echo_info("✅ Автоматически выбран: " . g:cmake_selected_target)
         call CMakeRunFixed()
     else
         call s:echo_warn("⚠️  Не найден исполняемый файл.")
-    endif
-endfunction
-
-" === ПОКАЗАТЬ ТЕКУЩИЙ ТИП СБОРКИ (DEBUG / RELEASE) (\ + B + T) ===
-nnoremap <leader>bt :call ShowCMakeBuildType()<CR>
-
-function! ShowCMakeBuildType()
-    if exists("g:cmake_build_type")
-        echo "Current CMake Build Type: " . g:cmake_build_type
-    else
-        echo "Build type not set (default: Debug)"
     endif
 endfunction
