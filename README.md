@@ -3,23 +3,7 @@
 
 
 Персональный конфиг для Vim с современными настройками, автодополнением, удобной работой с Git/GitHub, CMake, NERDTree и автозавершением скобок. Подходит для macOS и Linux.
-vimconfig/
-├── .vimrc                  # Главный конфиг Vim
-├── installvimconfig.sh     # Скрипт установки конфигурации	
-├── README.md               # Эта документация
-└── vimconfigs
-    ├── autocmd.vim         # Автоматические команды
-    ├── colors
-    │   └── fallout.vim     # кастомная цветовая схема
-    ├── functions           # Папка с функциями
-    │   ├── cmake.vim
-    │   ├── github.vim
-    │   ├── nerdtree.vim
-    │   ├── runcode.vim
-    │   └── terminal.vim
-    ├── mappings.vim        # Настройки сочетаний клавиш
-    ├── options.vim         # Опции Vim
-    └── plugins.vim         # Плагины и их настройки
+
 
 ## 📂 Структура проекта
 ```bash
