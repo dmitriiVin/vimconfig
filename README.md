@@ -6,7 +6,7 @@
 
 
 ## 📂 Структура проекта
-```bash
+```yml
 vimconfig/
 ├── .vimrc                  # Главный конфиг Vim
 ├── installvimconfig.sh     # Скрипт установки конфигурации
