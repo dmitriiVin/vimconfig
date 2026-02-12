@@ -26,5 +26,5 @@ Plug 'tpope/vim-rhubarb'       " GitHub интеграция
 call plug#end()
 
 " Цветовая схема ставим после установки всех плагинов
-colorscheme github
+" colorscheme github
 set background=dark
