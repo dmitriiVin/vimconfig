@@ -3,28 +3,43 @@
 
 
 Персональный конфиг для Vim с современными настройками, автодополнением, удобной работой с Git/GitHub, CMake, NERDTree и автозавершением скобок. Подходит для macOS и Linux.
-
-
-## 📂 Структура проекта
-```
 vimconfig/
 ├── .vimrc                  # Главный конфиг Vim
-├── installvimconfig.sh     # Скрипт установки конфигурации
+├── installvimconfig.sh     # Скрипт установки конфигурации	
 ├── README.md               # Эта документация
-|
-└── vimconfigs/
-|		|	├─── colors
-|	   	|	└── fallout.vim	# кастомная цветовая схема
-|		└─ functions/       # Папка с функциями
-|			├── cmake.vim
-|			├── github.vim
-|			├── nerdtree.vim
-|			├── runcode.vim
-|			└── terminal.vim
-├── autocmd.vim             # Автоматические команды
-├── mappings.vim            # Настройки сочетаний клавиш
-├── options.vim             # Опции Vim
-└── plugins.vim             # Плагины и их настройки
+└── vimconfigs
+    ├── autocmd.vim         # Автоматические команды
+    ├── colors
+    │   └── fallout.vim     # кастомная цветовая схема
+    ├── functions           # Папка с функциями
+    │   ├── cmake.vim
+    │   ├── github.vim
+    │   ├── nerdtree.vim
+    │   ├── runcode.vim
+    │   └── terminal.vim
+    ├── mappings.vim        # Настройки сочетаний клавиш
+    ├── options.vim         # Опции Vim
+    └── plugins.vim         # Плагины и их настройки
+
+## 📂 Структура проекта
+```bash
+vimconfig/
+├── .vimrc                  # Главный конфиг Vim
+├── installvimconfig.sh     # Скрипт установки конфигурации	
+├── README.md               # Эта документация
+└── vimconfigs
+    ├── autocmd.vim         # Автоматические команды
+    ├── colors
+    │   └── fallout.vim     # кастомная цветовая схема
+    ├── functions           # Папка с функциями
+    │   ├── cmake.vim
+    │   ├── github.vim
+    │   ├── nerdtree.vim
+    │   ├── runcode.vim
+    │   └── terminal.vim
+    ├── mappings.vim        # Настройки сочетаний клавиш
+    ├── options.vim         # Опции Vim
+    └── plugins.vim         # Плагины и их настройки
 ```
 ⸻
 ### ⚡ Быстрая установка
