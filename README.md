@@ -11,19 +11,20 @@ vimconfig/
 ├── .vimrc                  # Главный конфиг Vim
 ├── installvimconfig.sh     # Скрипт установки конфигурации
 ├── README.md               # Эта документация
-├─── colors
-|	   └── fallout.vim		# кастомная цветовая схема
+|
 └── vimconfigs/
+|			├─── colors
+|	   		└── fallout.vim	# кастомная цветовая схема
 |		└─ functions/       # Папка с функциями
 |		├── cmake.vim
 |		├── github.vim
 |		├── nerdtree.vim
 |		├── runcode.vim
 |		└── terminal.vim
-├── autocmd.vim            # Автоматические команды
-├── mappings.vim           # Настройки сочетаний клавиш
-├── options.vim            # Опции Vim
-└── plugins.vim            # Плагины и их настройки
+├── autocmd.vim             # Автоматические команды
+├── mappings.vim            # Настройки сочетаний клавиш
+├── options.vim             # Опции Vim
+└── plugins.vim             # Плагины и их настройки
 ```
 ⸻
 ### ⚡ Быстрая установка
