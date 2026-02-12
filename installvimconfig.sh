@@ -6,11 +6,15 @@ DEST_DIR="$HOME/.vim/vimconfigs"
 SRC_FUNC_DIR="./vimconfigs/functions"
 DEST_FUNC_DIR="$HOME/.vim/vimconfigs/functions"
 
+SRC_COLORS_DIR="./vimconfigs/colors"
+DEST_COLORS_DIR="$HOME/.vim/vimconfigs/colors"
+
 echo "Установка Vim конфигурации..."
 
 # Создаем основные директории
 mkdir -p "$DEST_DIR"
 mkdir -p "$DEST_FUNC_DIR"
+mkdir -p "$DEST_COLORS_DIR"
 
 # Копируем конфигурационные файлы
 cp "$SRC_DIR"/autocmd.vim "$DEST_DIR"/
@@ -23,6 +27,8 @@ cp "$SRC_FUNC_DIR"/github.vim "$DEST_FUNC_DIR"/
 cp "$SRC_FUNC_DIR"/nerdtree.vim "$DEST_FUNC_DIR"/
 cp "$SRC_FUNC_DIR"/runcode.vim "$DEST_FUNC_DIR"/
 cp "$SRC_FUNC_DIR"/terminal.vim "$DEST_FUNC_DIR"/
+
+cp "$SRC_COLORS_DIR"/fallout.vim "$DEST_COLORS_DIR"/
 
 cp "./.vimrc" "$HOME"/.vimrc
 

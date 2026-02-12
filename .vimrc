@@ -21,3 +21,4 @@ source ~/.vim/vimconfigs/options.vim
 " === Подключаем плагины ===
 source ~/.vim/vimconfigs/plugins.vim
 
+source ~/.vim/vimconfigs/fallout.vim
