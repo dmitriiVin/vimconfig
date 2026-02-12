@@ -13,14 +13,14 @@ vimconfig/
 ├── README.md               # Эта документация
 |
 └── vimconfigs/
-|			├─── colors
-|	   		└── fallout.vim	# кастомная цветовая схема
+|		|	├─── colors
+|	   	|	└── fallout.vim	# кастомная цветовая схема
 |		└─ functions/       # Папка с функциями
-|		├── cmake.vim
-|		├── github.vim
-|		├── nerdtree.vim
-|		├── runcode.vim
-|		└── terminal.vim
+|			├── cmake.vim
+|			├── github.vim
+|			├── nerdtree.vim
+|			├── runcode.vim
+|			└── terminal.vim
 ├── autocmd.vim             # Автоматические команды
 ├── mappings.vim            # Настройки сочетаний клавиш
 ├── options.vim             # Опции Vim
