@@ -11,6 +11,8 @@ vimconfig/
 ├── .vimrc                  # Главный конфиг Vim
 ├── installvimconfig.sh     # Скрипт установки конфигурации
 ├── README.md               # Эта документация
+├─── colors
+|	   └── fallout.vim		# кастомная цветовая схема
 └── vimconfigs/
 |		└─ functions/       # Папка с функциями
 |		├── cmake.vim
