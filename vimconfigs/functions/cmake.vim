@@ -30,7 +30,10 @@ function! CMakeGenerateFixed()
         call system('mkdir -p ' . fnameescape(build_dir))
     endif
 
-    let cmd = 'cd ' . fnameescape(build_dir) . ' && cmake -DCMAKE_BUILD_TYPE=' . g:cmake_build_type . ' ..'
+    " --- добавляем аргумент для Vcpkg ---
+    let toolchain_arg = "-DCMAKE_TOOLCHAIN_FILE=/Users/dmitriivinogradov/vcpkg/scripts/buildsystems/vcpkg.cmake"
+
+    let cmd = 'cd ' . fnameescape(build_dir) . ' && cmake -DCMAKE_BUILD_TYPE=' . g:cmake_build_type . ' ' . toolchain_arg . ' ..'
     call s:echo_info("🔧 Генерация (" . g:cmake_build_type . ")...")
     let result = system(cmd)
     echom result

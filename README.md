@@ -20,7 +20,8 @@ vimconfig/
     │   ├── github.vim
     │   ├── nerdtree.vim
     │   ├── runcode.vim
-    │   └── terminal.vim
+    │   ├── terminal.vim
+	│   └── coc_russian.vim # перевод ошибок на c++
     ├── mappings.vim        # Настройки сочетаний клавиш
     ├── options.vim         # Опции Vim
     └── plugins.vim         # Плагины и их настройки
@@ -54,7 +55,6 @@ cp .vimrc ~/
 |-----------|----------|
 | `Ctrl + S` | Сохранить файл |
 | `Ctrl + Shift + S` | Сохранить как |
-| `Ctrl + Q` | Закрыть текущий буфер |
 | `Ctrl + Z` | Отменить действие |
 | `Tab` / `Shift + Tab` | Переключение между буферами |
 
@@ -80,6 +80,8 @@ cp .vimrc ~/
 | `Ctrl + F` | Поиск по файлу |
 | `Ctrl + H` | Убрать подсветку поиска |
 | `Leader + C` | Комментировать/раскомментировать |
+| `Ctrl + W` | Открыть quickfix |
+| `Ctrl + Q` | Закрыть quickfix |
 
 4. 🐙 Git и GitHub
 
@@ -117,6 +119,7 @@ cp .vimrc ~/
 | Сочетание | Действие |
 |-----------|----------|
 | `F1` | Открыть/закрыть NERDTree |
+| `F2` | Переименовать файл или папку в NERDTree |
 | `F3` | Показать текущий файл в NERDTree |
 | `F4` | Обновить NERDTree |
 | `Ctrl + N` | Создать файл или папку |
@@ -149,6 +152,7 @@ nnoremap <F5> :call RunCode()<CR>
 ```
 	•	gruvbox (темная тема)
 	•	github (тема GitHub Dark через плагин)
+	•   colors/fallout.vim (fallout стиль)
 ```
 Активация темы (должна быть загружена после плагинов!):
 ```

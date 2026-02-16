@@ -28,3 +28,6 @@ augroup GitCloseMapping
     autocmd!
     autocmd FileType git,gitcommit,gitrebase,gitconfig nnoremap <buffer> <C-q> :call GitSaveAndClose()<CR>
 augroup END
+
+" === Привязка функции NERDTreeCD к клавише i внутри NERDTree ===
+autocmd FileType nerdtree nnoremap <buffer> i :call NERDTreeCD()<CR>

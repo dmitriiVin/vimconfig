@@ -16,7 +16,7 @@ function! CreateFileOrDirectoryInNERDTree()
         endif
         
         " Выбор типа: файл или папка
-        let choice = confirm("Создать:", "&Файл\n&Папку", 1)
+        let choice = confirm("Создать:", "&AФайл\n&GПапку", 1)
         
         if choice == 1
             " Создание файла
@@ -139,5 +139,79 @@ function! CreateNewFile()
                 NERDTreeRefreshRoot
             endif
         endif
+    endif
+endfunction
+
+" === ФУНКЦИЯ ПЕРЕИМЕНОВАНИЯ ФАЙЛА/ДИРЕКТОРИИ В NERDTREE ===
+function! RenameFile()
+    if &filetype == 'nerdtree'
+        " Получаем выбранный узел
+        let current_node = g:NERDTreeFileNode.GetSelected()
+        if empty(current_node)
+            echo "Не выбран файл или папка"
+            return
+        endif
+
+        let old_path = current_node.path.str()
+        let old_name = current_node.path.getLastPathComponent(1)
+
+        " Ввод нового имени
+        let new_name = input('Новое имя для "' . old_name . '": ', old_name)
+        if empty(new_name)
+            echo "Переименование отменено"
+            return
+        endif
+
+        " Получаем путь к родительской директории
+        let parent_dir = fnamemodify(old_path, ':h')
+        let new_path = parent_dir . '/' . new_name
+
+        " Проверка на существование
+        if filereadable(new_path) || isdirectory(new_path)
+            echo "Файл или папка с таким именем уже существует!"
+            return
+        endif
+
+        " Выполняем переименование
+        let cmd = 'mv "' . old_path . '" "' . new_path . '"'
+        let output = system(cmd)
+
+        if v:shell_error
+            echo "Ошибка при переименовании: " . output
+        else
+            echo "Переименовано: " . old_name . " → " . new_name
+            " Обновляем NERDTree
+            NERDTreeRefreshRoot
+        endif
+    else
+        echo "Эта команда работает только в NERDTree"
+    endif
+endfunction
+
+" === Функция CD внутрь выбранной директории в NERDTree ===
+function! NERDTreeCD()
+    if &filetype !=# 'nerdtree'
+        echo "Эта команда работает только в NERDTree"
+        return
+    endif
+
+    " Получаем выбранный узел
+    let node = g:NERDTreeFileNode.GetSelected()
+    if empty(node)
+        echo "Не выбран файл или папка"
+        return
+    endif
+
+    " Если это директория — переходим в неё
+    if isdirectory(node.path.str())
+        let dir = node.path.str()
+        " Меняем рабочую директорию Vim
+        execute 'cd ' . fnameescape(dir)
+        " Обновляем NERDTree, чтобы показывалась только эта директория
+        execute 'NERDTreeClose'
+        execute 'NERDTreeToggle ' . fnameescape(dir)
+        echo "📁 Перешли в: " . dir
+    else
+        echo "Выбранный узел не является директорией"
     endif
 endfunction

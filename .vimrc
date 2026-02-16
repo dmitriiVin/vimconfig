@@ -11,6 +11,7 @@ source ~/.vim/vimconfigs/functions/nerdtree.vim
 source ~/.vim/vimconfigs/functions/runcode.vim
 source ~/.vim/vimconfigs/functions/terminal.vim
 source ~/.vim/vimconfigs/functions/github.vim
+source ~/.vim/vimconfigs/functions/coc_russian.vim
 
 " === Подключаем бинды ===
 source ~/.vim/vimconfigs/mappings.vim

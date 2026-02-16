@@ -5,13 +5,13 @@ inoremap <C-s> <Esc>:w<CR>a
 nnoremap <C-s> <Esc>:w<CR>a
 vnoremap <C-s> <Esc>:w<CR>a
 
-" Ctrl + Q - закрыть текущий файл в буфере
-nnoremap <C-q> :bp\|bd #<CR>
+" " Ctrl + Q - закрыть текущий файл в буфере
+" nnoremap <C-q> :bp\|bd #<CR>
 
-" Ctrl + W - закрыть текущее сплит окно
-vnoremap <C-w> :q<CR>
-inoremap <C-w> :q<CR>
-nnoremap <C-w> :q<CR>
+" " Ctrl + W - закрыть текущее сплит окно
+" vnoremap <C-w> :q<CR>
+" inoremap <C-w> :q<CR>
+" nnoremap <C-w> :q<CR>
 
 " Ctrl + Shift + S - сохранить как
 nnoremap <C-S-s> :saveas 
@@ -216,3 +216,15 @@ nnoremap <leader>gl :Git pull<CR>
 
 " \ + G + O - Открыть на GitHub в браузере
 nnoremap <leader>go :GBrowse<CR>
+
+" ====== QUICKFIX =======
+
+" Открыть/закрыть quickfix
+nnoremap <C-w> :copen<CR>
+nnoremap <C-q> :cclose<CR>
+
+" Навигация по ошибкам
+nnoremap <leader>qn :cnext<CR>
+nnoremap <leader>qp :cprev<CR>
+nnoremap <leader>qf :cfirst<CR>
+nnoremap <leader>ql :clast<CR>
