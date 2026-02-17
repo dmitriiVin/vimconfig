@@ -13,9 +13,10 @@ vnoremap <C-s> <Esc>:w<CR>a
 " inoremap <C-w> :q<CR>
 " nnoremap <C-w> :q<CR>
 
-" Ctrl + Shift + S - сохранить как
-nnoremap <C-S-s> :saveas 
-
+" Ctrl + S - сохранить
+nnoremap <C-S-s> :w
+inoremap <C-S-s> :w
+vnoremap <C-S-s> :w
 " Ctrl + C - копировать выделенный текст в системный буфер
 vnoremap <C-c> "+y
 inoremap <C-c> "+y
