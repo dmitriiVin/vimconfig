@@ -24,22 +24,22 @@ function! CMakeGenerateFixed()
     endif
 
     let cmake_dir = fnamemodify(cmake_file, ':h')
-    let build_dir = cmake_dir . '/' . g:cmake_build_type
+    let build_dir = cmake_dir . '/build/' . g:cmake_build_type  " Debug/Release
 
     if !isdirectory(build_dir)
         call system('mkdir -p ' . fnameescape(build_dir))
     endif
 
-    " --- добавляем аргумент для Vcpkg ---
+    " Добавляем Vcpkg и генератор Ninja
     let toolchain_arg = "-DCMAKE_TOOLCHAIN_FILE=/Users/dmitriivinogradov/vcpkg/scripts/buildsystems/vcpkg.cmake"
+    let cmd = 'cmake -B ' . fnameescape(build_dir) . ' -S ' . fnameescape(cmake_dir) . ' -G Ninja -DCMAKE_BUILD_TYPE=' . g:cmake_build_type . ' ' . toolchain_arg
 
-    let cmd = 'cd ' . fnameescape(build_dir) . ' && cmake -DCMAKE_BUILD_TYPE=' . g:cmake_build_type . ' ' . toolchain_arg . ' ..'
-    call s:echo_info("🔧 Генерация (" . g:cmake_build_type . ")...")
+    call s:echo_info("🔧 Генерация CMake (" . g:cmake_build_type . ") в " . build_dir . " ...")
     let result = system(cmd)
     echom result
 
     if v:shell_error == 0
-        call s:echo_success("✅ Успешно сгенерировано → " . build_dir)
+        call s:echo_success("✅ CMake сгенерирован → " . build_dir)
     else
         call s:echo_error("❌ Ошибка при генерации в " . build_dir)
     endif
@@ -54,20 +54,20 @@ function! CMakeBuildFixed()
     endif
 
     let cmake_dir = fnamemodify(cmake_file, ':h')
-    let build_dir = cmake_dir . '/' . g:cmake_build_type
+    let build_dir = cmake_dir . '/build/' . g:cmake_build_type
 
     if !isdirectory(build_dir)
         call s:echo_warn("⚠️  Сначала запусти генерацию (F6)")
         return
     endif
 
-    let cmd = 'cd ' . fnameescape(build_dir) . ' && make -j4'
-    call s:echo_info("⚙️  Сборка (" . g:cmake_build_type . ")...")
+    let cmd = 'cmake --build ' . fnameescape(build_dir)
+    call s:echo_info("⚙️  Сборка (" . g:cmake_build_type . ") в " . build_dir . " ...")
     let result = system(cmd)
     echom result
 
     if v:shell_error == 0
-        call s:echo_success("✅ Сборка успешна в " . build_dir)
+        call s:echo_success("✅ Сборка успешна → " . build_dir)
     else
         call s:echo_error("❌ Сборка не удалась")
     endif
@@ -82,16 +82,21 @@ function! CMakeSelectTargetInteractive()
     endif
 
     let cmake_dir = fnamemodify(cmake_file, ':h')
-    let build_dir = cmake_dir . '/' . g:cmake_build_type
+    let build_dir = cmake_dir . '/build/' . g:cmake_build_type
 
     if !isdirectory(build_dir)
-        call s:echo_warn("⚠️  Нет папки " . build_dir . ". Сначала сгенерируй проект (F6).")
+        call s:echo_warn("⚠️  Нет папки " . build_dir . ". Сначала F6")
         return
     endif
 
-    " Исправленный поиск исполняемых файлов
-    let all_executables = systemlist('find ' . fnameescape(build_dir) . ' -type f -executable ! -type d 2>/dev/null')
-    call filter(all_executables, 'v:val !~# "CMakeFiles"')
+    " --- рекурсивный поиск исполняемых файлов ---
+    " - тип файла: f (обычный файл)
+    " - права на выполнение: +111 (Unix)
+    " - исключаем все *.a, *.dylib, *.so и папки CMakeFiles
+    let all_executables = systemlist(
+                \ 'find ' . fnameescape(build_dir) . ' -type f -perm +111 ' .
+                \ '-not -name "*.a" -not -name "*.so" -not -name "*.dylib" -not -path "*/CMakeFiles/*" 2>/dev/null'
+                \ )
 
     if empty(all_executables)
         call s:echo_error("❌ Исполняемые файлы не найдены в " . build_dir)

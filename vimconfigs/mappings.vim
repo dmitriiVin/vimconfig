@@ -5,8 +5,8 @@ inoremap <C-s> <Esc>:w<CR>a
 nnoremap <C-s> <Esc>:w<CR>a
 vnoremap <C-s> <Esc>:w<CR>a
 
-" " Ctrl + Q - закрыть текущий файл в буфере
-" nnoremap <C-q> :bp\|bd #<CR>
+" " Ctrl + X - закрыть текущий файл в буфере
+nnoremap <C-x> :bp\|bd #<CR>
 
 " " Ctrl + W - закрыть текущее сплит окно
 " vnoremap <C-w> :q<CR>
