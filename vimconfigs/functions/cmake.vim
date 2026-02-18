@@ -49,14 +49,17 @@ function! s:CocRunCommandIfExists(command_name) abort
 endfunction
 
 " === Выбор CMakeLists.txt в текущем workspace ===
-function! s:SelectCMakeFileInWorkspace(workspace_root, prompt_title) abort
+function! s:SelectCMakeFileInWorkspace(workspace_root, prompt_title, ...) abort
+    let l:force_prompt = get(a:000, 0, 0)
     let l:cmake_files = systemlist('find ' . fnameescape(a:workspace_root) . ' -type f -name "CMakeLists.txt" 2>/dev/null')
     if empty(l:cmake_files)
         return ''
     endif
 
+    call sort(l:cmake_files)
+
     " Если известен последний проект, выбираем его автоматически.
-    if !empty(g:cmake_last_cmake_dir)
+    if !l:force_prompt && !empty(g:cmake_last_cmake_dir)
         for l:file in l:cmake_files
             if fnamemodify(l:file, ':h') ==# g:cmake_last_cmake_dir
                 return l:file
@@ -82,6 +85,88 @@ function! s:SelectCMakeFileInWorkspace(workspace_root, prompt_title) abort
     return l:cmake_files[l:choice - 1]
 endfunction
 
+" === Варианты папки сборки для текущего build type ===
+function! s:GetBuildDirCandidates(cmake_dir) abort
+    let l:raw_type = g:cmake_build_type
+    let l:lower_type = tolower(g:cmake_build_type)
+    let l:candidates = []
+
+    if g:cmake_last_cmake_dir ==# a:cmake_dir && !empty(g:cmake_last_build_dir)
+        let l:last_type = fnamemodify(g:cmake_last_build_dir, ':t')
+        if l:last_type ==# l:lower_type || l:last_type ==# l:raw_type
+            call add(l:candidates, g:cmake_last_build_dir)
+        endif
+    endif
+
+    call add(l:candidates, a:cmake_dir . '/build/' . l:lower_type)
+    call add(l:candidates, a:cmake_dir . '/build/' . l:raw_type)
+
+    return uniq(l:candidates)
+endfunction
+
+" === Найти существующую папку сборки, иначе вернуть дефолт ===
+function! s:ResolveBuildDir(cmake_dir) abort
+    let l:candidates = s:GetBuildDirCandidates(a:cmake_dir)
+
+    for l:dir in l:candidates
+        if isdirectory(l:dir)
+            return l:dir
+        endif
+    endfor
+
+    return l:candidates[0]
+endfunction
+
+" === Генерация CMake для выбранной директории ===
+function! s:GenerateForDirectory(workspace_root, cmake_dir) abort
+    let l:build_dir = s:ResolveBuildDir(a:cmake_dir)
+    if !isdirectory(l:build_dir)
+        call mkdir(l:build_dir, 'p')
+    endif
+
+    " --- Генерация CMake с Ninja и Vcpkg ---
+    let toolchain_arg = "-DCMAKE_TOOLCHAIN_FILE=/Users/dmitriivinogradov/vcpkg/scripts/buildsystems/vcpkg.cmake"
+    let cmd = 'cmake -B ' . fnameescape(l:build_dir) . ' -S ' . fnameescape(a:cmake_dir) .
+                \ ' -G Ninja -DCMAKE_BUILD_TYPE=' . g:cmake_build_type . ' ' . toolchain_arg .
+                \ ' -DCMAKE_EXPORT_COMPILE_COMMANDS=ON'
+
+    call s:echo_info("🔧 Генерация CMake (" . g:cmake_build_type . ") в " . l:build_dir . " ...")
+    let result = system(cmd)
+    echom result
+
+    if v:shell_error != 0
+        call s:echo_error("❌ Ошибка при генерации в " . l:build_dir)
+        return ''
+    endif
+
+    call s:echo_success("✅ CMake сгенерирован → " . l:build_dir)
+    let g:cmake_last_workspace_root = a:workspace_root
+    let g:cmake_last_cmake_dir = a:cmake_dir
+    let g:cmake_last_build_dir = l:build_dir
+
+    " --- Симлинк compile_commands.json в корень проекта ---
+    let cc_path = l:build_dir . '/compile_commands.json'
+    if filereadable(cc_path)
+        let link_path = a:workspace_root . '/compile_commands.json'
+        call system('ln -sf ' . fnameescape(cc_path) . ' ' . fnameescape(link_path))
+        call s:echo_info("🔗 compile_commands.json → корень проекта")
+    endif
+
+    " --- Перезапуск CoC/LSP после обновления compile_commands.json ---
+    if exists(':CocRestart')
+        silent! CocRestart
+    elseif exists('*CocAction')
+        call s:CocRunCommandIfExists('workspace.reloadProjects')
+        call s:CocRunCommandIfExists('clangd.restart')
+    endif
+
+    call setqflist([], 'r')
+    redraw!
+    call s:echo_info("♻️ Diagnostics обновлены")
+
+    return l:build_dir
+endfunction
+
 " === Найти ближайший CMakeLists.txt вверх по дереву ===
 function! s:FindCMakeLists(start_dir) abort
     let l:dir = a:start_dir
@@ -103,60 +188,16 @@ function! CMakeGenerateFixed() abort
     try
         " --- Поиск CMakeLists.txt в workspace ---
         let workspace_root = getcwd()
-        let cmake_file = s:SelectCMakeFileInWorkspace(workspace_root, 'Выберите CMakeLists.txt для генерации:')
+        let cmake_file = s:SelectCMakeFileInWorkspace(workspace_root, 'Выберите CMakeLists.txt для генерации:', 1)
         if empty(cmake_file)
             call s:echo_error("❌ CMakeLists.txt не найден")
             return
         endif
 
         let cmake_dir = fnamemodify(cmake_file, ':h')
-        let build_dir = cmake_dir . '/build/' . g:cmake_build_type
-
-        if !isdirectory(build_dir)
-            call system('mkdir -p ' . fnameescape(build_dir))
-        endif
-
-        " --- Генерация CMake с Ninja и Vcpkg ---
-        let toolchain_arg = "-DCMAKE_TOOLCHAIN_FILE=/Users/dmitriivinogradov/vcpkg/scripts/buildsystems/vcpkg.cmake"
-        let cmd = 'cmake -B ' . fnameescape(build_dir) . ' -S ' . fnameescape(cmake_dir) .
-                    \ ' -G Ninja -DCMAKE_BUILD_TYPE=' . g:cmake_build_type . ' ' . toolchain_arg .
-                    \ ' -DCMAKE_EXPORT_COMPILE_COMMANDS=ON'
-
-        call s:echo_info("🔧 Генерация CMake (" . g:cmake_build_type . ") в " . build_dir . " ...")
-        let result = system(cmd)
-        echom result
-
-        if v:shell_error == 0
-            call s:echo_success("✅ CMake сгенерирован → " . build_dir)
-            let g:cmake_last_workspace_root = workspace_root
-            let g:cmake_last_cmake_dir = cmake_dir
-            let g:cmake_last_build_dir = build_dir
-
-            " --- Симлинк compile_commands.json в корень проекта ---
-            let cc_path = build_dir . '/compile_commands.json'
-            if filereadable(cc_path)
-                let link_path = workspace_root . '/compile_commands.json'
-                call system('ln -sf ' . fnameescape(cc_path) . ' ' . fnameescape(link_path))
-                call s:echo_info("🔗 compile_commands.json → корень проекта")
-            endif
-
-            " --- Перезапуск CoC/LSP после обновления compile_commands.json ---
-            if exists(':CocRestart')
-                silent! CocRestart
-            elseif exists('*CocAction')
-                call s:CocRunCommandIfExists('workspace.reloadProjects')
-                call s:CocRunCommandIfExists('clangd.restart')
-            endif
-
-            " Очистка quickfix безопасно
-            call setqflist([], 'r')
-
-            " Перерисовать экран
-            redraw!
-
-            call s:echo_info("♻️ Diagnostics обновлены")
-        else
-            call s:echo_error("❌ Ошибка при генерации в " . build_dir)
+        let build_dir = s:GenerateForDirectory(workspace_root, cmake_dir)
+        if empty(build_dir)
+            return
         endif
     finally
         if l:origin_win > 0
@@ -182,17 +223,11 @@ function! CMakeBuildFixed() abort
     endif
 
     let cmake_dir = fnamemodify(cmake_file, ':h')
-    let build_dir = cmake_dir . '/build/' . g:cmake_build_type
+    let build_dir = s:ResolveBuildDir(cmake_dir)
 
     if !isdirectory(build_dir)
-        call s:echo_warn("⚠️  Папка сборки не найдена, запускаю генерацию (F6)...")
-        let g:cmake_last_workspace_root = getcwd()
-        let g:cmake_last_cmake_dir = cmake_dir
-        call CMakeGenerateFixed()
-
-        if !empty(g:cmake_last_build_dir) && isdirectory(g:cmake_last_build_dir)
-            let build_dir = g:cmake_last_build_dir
-        endif
+        call s:echo_warn("⚠️  Папка сборки не найдена, запускаю автогенерацию...")
+        let build_dir = s:GenerateForDirectory(getcwd(), cmake_dir)
 
         if !isdirectory(build_dir)
             call s:echo_error("❌ Не удалось подготовить папку сборки")
@@ -226,10 +261,10 @@ function! CMakeSelectTargetInteractive() abort
     endif
 
     let cmake_dir = fnamemodify(cmake_file, ':h')
-    let build_dir = cmake_dir . '/build/' . g:cmake_build_type
+    let build_dir = s:ResolveBuildDir(cmake_dir)
 
     if !isdirectory(build_dir)
-        call s:echo_warn("⚠️  Нет папки " . build_dir . ". Сначала F6")
+        call s:echo_warn("⚠️  Нет папки сборки (" . cmake_dir . "/build/debug или /build/release). Сначала F6")
         return
     endif
 
@@ -270,7 +305,11 @@ function! CMakeRunFixed() abort
         endif
 
         let cmake_dir = fnamemodify(cmake_file, ':h')
-        let build_dir = cmake_dir . '/build/' . g:cmake_build_type
+        let build_dir = s:ResolveBuildDir(cmake_dir)
+        if !isdirectory(build_dir)
+            call s:echo_warn("⚠️  Папка сборки не найдена (сначала F6 или F7)")
+            return
+        endif
 
         let auto_exe = systemlist('find ' . fnameescape(build_dir) . ' -type f -executable ! -type d 2>/dev/null | grep -v CMakeFiles | head -1')
         if !empty(auto_exe)
@@ -357,11 +396,13 @@ function! CMakeQuickRun() abort
         return
     endif
 
-    let build_dir = fnamemodify(cmake_file, ':h') . '/build/' . g:cmake_build_type
+    let cmake_dir = fnamemodify(cmake_file, ':h')
+    let build_dir = s:ResolveBuildDir(cmake_dir)
     if !isdirectory(build_dir)
-        call CMakeGenerateFixed()
-        if !empty(g:cmake_last_build_dir) && isdirectory(g:cmake_last_build_dir)
-            let build_dir = g:cmake_last_build_dir
+        let build_dir = s:GenerateForDirectory(getcwd(), cmake_dir)
+        if !isdirectory(build_dir)
+            call s:echo_error("❌ Не удалось определить build-папку после генерации")
+            return
         endif
     endif
 
