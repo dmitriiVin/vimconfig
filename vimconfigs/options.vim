@@ -95,6 +95,12 @@ let g:airline#extensions#tabline#show_tabs = 0
 let g:airline#extensions#tabline#fnamemod = ':t'
 set showtabline=2
 
+" Текущий build type (Debug/Release) в правой части статусной строки.
+function! VimConfigBuildTypeLabel() abort
+    return exists('g:cmake_build_type') && !empty(g:cmake_build_type) ? g:cmake_build_type : '-'
+endfunction
+let g:airline_section_z = 'BT:%{VimConfigBuildTypeLabel()} | %3p%% ☰ %l/%L'
+
 " Открывать Git статус в том же окне
 let g:fugitive_UseSplit = 0
 

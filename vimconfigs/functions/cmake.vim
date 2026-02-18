@@ -752,11 +752,17 @@ function! CMakeToggleBuildType() abort
             " Если переключение кода сорвалось, откатываем build type.
             let g:cmake_build_type = l:old_build_type
             call s:echo_warn("↩️  Режим сборки возвращен: " . g:cmake_build_type)
+            if exists(':AirlineRefresh')
+                silent! AirlineRefresh
+            endif
             return
         endif
     endif
 
     call s:RetargetSelectedExecutable(l:cmake_dir)
+    if exists(':AirlineRefresh')
+        silent! AirlineRefresh
+    endif
 endfunction
 
 " === Создание/открытие CMakeLists.txt в NERDTree (F12) ===
