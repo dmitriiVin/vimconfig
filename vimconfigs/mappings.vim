@@ -253,6 +253,15 @@ nnoremap <leader>gl :Git pull<CR>
 " \ + G + O - Открыть на GitHub в браузере
 nnoremap <leader>go :GBrowse<CR>
 
+" \ + G + B - Переключить Git-ветку (интерактивно)
+nnoremap <leader>gb :call GitSwitchBranchInteractive()<CR>
+
+" \ + G + N - Создать и переключить новую Git-ветку
+nnoremap <leader>gn :call GitCreateBranchInteractive()<CR>
+
+" \ + G + V - Переключить Git worktree (другая версия кода)
+nnoremap <leader>gv :call GitSwitchWorktreeInteractive()<CR>
+
 " ====== QUICKFIX =======
 
 " Открыть/закрыть quickfix
