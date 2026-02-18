@@ -226,8 +226,8 @@ function! s:HasModifiedWorkBuffers() abort
 endfunction
 
 function! s:SaveAllWorkBuffers() abort
-    " Автосохраняем без интерактивного confirm, чтобы F10 не зависел от ввода в терминал.
-    silent! wall
+    " Для F10 сохраняем без автокоманд, иначе BufWritePost/NERDTree/Coc могут подвешивать Vim.
+    silent! noautocmd wall
     return !s:HasModifiedWorkBuffers()
 endfunction
 
@@ -273,10 +273,12 @@ function! s:SwitchCodeProfile(cmake_dir, old_build_type, new_build_type) abort
     call s:ReloadProjectBuffers(a:cmake_dir)
 
     if exists(':NERDTreeRefreshRoot')
-        silent! NERDTreeRefreshRoot
+        silent! noautocmd NERDTreeRefreshRoot
     endif
-    if exists(':CocRestart')
-        silent! CocRestart
+    if exists('*CocActionAsync')
+        silent! call CocActionAsync('diagnosticRefresh')
+    elseif exists('*CocAction')
+        silent! call CocAction('diagnosticRefresh')
     endif
 
     call s:echo_success("✅ Активирована версия кода: " . l:to_profile)
@@ -306,12 +308,12 @@ function! s:ReloadProjectBuffers(project_root) abort
             continue
         endif
 
-        execute 'silent! keepalt buffer ' . l:buf.bufnr
-        silent! edit!
+        execute 'silent! noautocmd keepalt buffer ' . l:buf.bufnr
+        silent! noautocmd edit!
     endfor
 
     if bufexists(l:origin_buf)
-        execute 'silent! keepalt buffer ' . l:origin_buf
+        execute 'silent! noautocmd keepalt buffer ' . l:origin_buf
     endif
     if l:origin_win > 0
         silent! call win_gotoid(l:origin_win)
