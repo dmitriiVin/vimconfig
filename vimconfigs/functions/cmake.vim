@@ -243,6 +243,12 @@ function! s:SaveAllWorkBuffers() abort
 endfunction
 
 function! s:SwitchCodeProfile(cmake_dir, old_build_type, new_build_type) abort
+    if s:IsUnsafeProfileRoot(a:cmake_dir)
+        call s:echo_error("❌ Небезопасная директория профиля: " . fnamemodify(a:cmake_dir, ':p'))
+        call s:echo_warn("ℹ️  Откройте файл проекта и повторите F10 внутри директории проекта")
+        return 0
+    endif
+
     if !s:EnsureCodeProfiles(a:cmake_dir)
         return 0
     endif
@@ -488,6 +494,28 @@ function! s:FindPreferredCMakeForBuild() abort
     return ''
 endfunction
 
+" === Защита от опасной синхронизации профиля в HOME/корень ===
+function! s:IsUnsafeProfileRoot(dir_path) abort
+    let l:dir = fnamemodify(a:dir_path, ':p')
+    let l:home = fnamemodify($HOME, ':p')
+    return empty(l:dir) || l:dir ==# '/' || l:dir ==# l:home
+endfunction
+
+" === Определить директорию для debug/release профиля ===
+function! s:ResolveProfileRootForToggle() abort
+    let l:cmake_file = s:FindPreferredCMakeForBuild()
+    if !empty(l:cmake_file)
+        return fnamemodify(l:cmake_file, ':h')
+    endif
+
+    let l:buffer_file = expand('%:p')
+    if !empty(l:buffer_file) && filereadable(l:buffer_file)
+        return fnamemodify(l:buffer_file, ':h')
+    endif
+
+    return fnamemodify(getcwd(), ':p')
+endfunction
+
 " === Генерация CMake (F6) ===
 function! CMakeGenerateFixed() abort
     let l:origin_win = win_getid()
@@ -705,8 +733,12 @@ endfunction
 " === Переключатель режима сборки (F10) ===
 function! CMakeToggleBuildType() abort
     let l:old_build_type = g:cmake_build_type
-    let l:cmake_file = s:FindPreferredCMakeForBuild()
-    let l:cmake_dir = empty(l:cmake_file) ? getcwd() : fnamemodify(l:cmake_file, ':h')
+    let l:cmake_dir = s:ResolveProfileRootForToggle()
+    if s:IsUnsafeProfileRoot(l:cmake_dir)
+        call s:echo_error("❌ F10 заблокирован для директории: " . fnamemodify(l:cmake_dir, ':p'))
+        call s:echo_warn("ℹ️  Откройте файл проекта (не HOME) и повторите переключение")
+        return
+    endif
     if g:cmake_build_type ==# 'Debug'
         let g:cmake_build_type = 'Release'
     else
