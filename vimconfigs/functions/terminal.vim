@@ -14,6 +14,7 @@ function! TerminalTabComplete()
     endif
 endfunction
 
+" === Безопасное переключение на предыдущий буфер (не из NERDTree) ===
 function! SafeBufferSwitch()
     if &filetype != 'nerdtree'
         :b#
@@ -32,4 +33,22 @@ function! SafeEdit()
             endtry
         endif
     endif
+endfunction
+
+" === ПОЛНАЯ ПЕРЕЗАГРУЗКА VIM ===
+function! RestartVimFull() abort
+    " Сохраняем все файлы
+    silent! wall
+
+    " Сохраняем текущую позицию
+    let l:session = tempname() . '.vim'
+
+    " Создаём временную сессию
+    execute 'mksession! ' . fnameescape(l:session)
+
+    " Перезапускаем Vim и загружаем сессию
+    execute 'silent !' . v:progpath . ' -S ' . fnameescape(l:session)
+
+    " Закрываем текущий Vim
+    qa!
 endfunction

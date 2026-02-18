@@ -96,36 +96,6 @@ function! DeleteFileOrDirectory()
     endif
 endfunction
 
-" === ПЕРЕХОД МЕЖДУ NERDTREE И РАБОЧЕЙ ОБЛАСТЬЮ ===
-function! SwitchBetweenNERDTreeAndCode()
-    " Если сейчас в NERDTree - переходим в рабочее окно
-    if &filetype == 'nerdtree'
-        wincmd l
-        " Если не получилось перейти (нет других окон), создаем новое
-        if &filetype == 'nerdtree'
-            wincmd l
-        endif
-    " Если в рабочем окне - ищем NERDTree и переходим в него
-    else
-        " Ищем окно с NERDTree
-        let nerdtree_winnr = -1
-        for winnr in range(1, winnr('$'))
-            if getbufvar(winbufnr(winnr), '&filetype') == 'nerdtree'
-                let nerdtree_winnr = winnr
-                break
-            endif
-        endfor
-
-        " Если нашли NERDTree - переходим в него
-        if nerdtree_winnr != -1
-            execute nerdtree_winnr . 'wincmd w'
-        " Если NERDTree не найден - открываем его
-        else
-            NERDTreeToggle
-        endif
-    endif
-endfunction
-
 " Создать новый файл в текущей директории с обновлением NERDTree (только в рабочей области)
 function! CreateNewFile()
     if &filetype != 'nerdtree'

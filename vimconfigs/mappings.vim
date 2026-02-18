@@ -1,12 +1,13 @@
 " === СОЧЕТАНИЯ КЛАВИШ ===
 
 " Ctrl + S - сохранить файл
-inoremap <C-s> <Esc>:w<CR>a
-nnoremap <C-s> <Esc>:w<CR>a
-vnoremap <C-s> <Esc>:w<CR>a
+inoremap <silent> <C-s> <Esc>:w<CR>a
+nnoremap <silent> <C-s> :w<CR>
+vnoremap <silent> <C-s> <Esc>:w<CR>gv
 
 " " Ctrl + X - закрыть текущий файл в буфере
 nnoremap <C-x> :bp\|bd #<CR>
+nnoremap <leader>x :bp\|bd #<CR>
 
 " " Ctrl + W - закрыть текущее сплит окно
 " vnoremap <C-w> :q<CR>
@@ -14,9 +15,9 @@ nnoremap <C-x> :bp\|bd #<CR>
 " nnoremap <C-w> :q<CR>
 
 " Ctrl + S - сохранить
-nnoremap <C-S-s> :w
-inoremap <C-S-s> :w
-vnoremap <C-S-s> :w
+nnoremap <silent> <C-S-s> :w<CR>
+inoremap <silent> <C-S-s> <Esc>:w<CR>a
+vnoremap <silent> <C-S-s> <Esc>:w<CR>gv
 " Ctrl + C - копировать выделенный текст в системный буфер
 vnoremap <C-c> "+y
 inoremap <C-c> "+y
@@ -47,9 +48,38 @@ nnoremap <C-h> :nohlsearch<CR>
 " Ctrl + N - создать новый файл
 nnoremap <C-n> :call CreateNewFile()<CR>
 
-" Tab - переключение между открытыми буферами (файлами)
-nnoremap <Tab> :bnext<CR>
-nnoremap <S-Tab> :bprevious<CR>
+" Tab - переключение между рабочими буферами (без NERDTree/quickfix)
+function! s:IsWorkBuffer() abort
+    return &buftype ==# '' && &filetype !=# 'nerdtree'
+endfunction
+
+" Переключить рабочий буфер вперед/назад
+function! s:CycleWorkBuffer(step) abort
+    if !s:IsWorkBuffer()
+        return
+    endif
+
+    if a:step > 0
+        silent! bnext
+    else
+        silent! bprevious
+    endif
+endfunction
+
+nnoremap <silent> <Tab> :call <SID>CycleWorkBuffer(1)<CR>
+nnoremap <silent> <S-Tab> :call <SID>CycleWorkBuffer(-1)<CR>
+
+" Tab + стрелки - переход между окнами (NERDTree/код/quickfix)
+nnoremap <silent> <Tab><Left> <C-w>h
+nnoremap <silent> <Tab><Right> <C-w>l
+nnoremap <silent> <Tab><Up> <C-w>k
+nnoremap <silent> <Tab><Down> <C-w>j
+
+" Shift + стрелки - быстрая навигация по окнам с удержанием Shift
+nnoremap <silent> <S-Left> <C-w>h
+nnoremap <silent> <S-Right> <C-w>l
+nnoremap <silent> <S-Up> <C-w>k
+nnoremap <silent> <S-Down> <C-w>j
 
 " Удалить текущую строку - Ctrl + K
 nnoremap <C-k> dd
@@ -88,6 +118,15 @@ nnoremap <leader>ru :call CMakeQuickRun()<CR>
 " \ + B + T ПОКАЗАТЬ ТЕКУЩИЙ ТИП СБОРКИ (DEBUG / RELEASE)
 nnoremap <leader>bt :call ShowCMakeBuildType()<CR>
 
+" \ + T + H - выбрать и применить тему
+nnoremap <leader>th :call SelectThemeInteractive()<CR>
+
+" \ + F + F - выбрать и применить шрифт
+nnoremap <leader>ff :call SelectFontInteractive()<CR>
+
+" \ + H - открыть встроенную справку по командам конфигурации
+nnoremap <leader>h :call ShowVimCommandsHelp()<CR>
+
 " === УПРАВЛЕНИЕ NERDTREE И БУФЕРАМИ ===
 
 " F1 - открыть/закрыть NERDTree
@@ -105,8 +144,8 @@ nnoremap <C-n> :call CreateFileOrDirectoryInNERDTree()<CR>
 " Ctrl + D - удалить файл/папку в NERDTree
 nnoremap <C-d> :call DeleteFileOrDirectory()<CR>
 
-" Ctrl + B  - переключение между NERDTree и рабочим окном
-nnoremap <C-b> :call SwitchBetweenNERDTreeAndCode()<CR>
+" Ctrl + B - закрыть текущий файл в буфере
+nnoremap <C-b> :bp\|bd #<CR>
 
 " === РАБОТА С ФАЙЛАМИ И ПУТЯМИ ===
 
@@ -159,10 +198,6 @@ nnoremap <leader>bd :bd<CR>
 
 " Закрыть все буферы кроме текущего
 nnoremap <leader>bo :%bd\|e#<CR>
-
-" Переключение буферов без предупреждения о несохранённых изменениях
-nnoremap <silent> <Tab> :bnext!<CR>
-nnoremap <silent> <S-Tab> :bprevious!<CR>
 
 " Быстрое переключение между последними файлами (уже есть)
 nnoremap <C-Tab> :b#<CR>
@@ -221,7 +256,7 @@ nnoremap <leader>go :GBrowse<CR>
 " ====== QUICKFIX =======
 
 " Открыть/закрыть quickfix
-nnoremap <C-w> :copen<CR>
+nnoremap <C-w> :call OpenQuickfixMonitor()<CR>
 nnoremap <C-q> :cclose<CR>
 
 " Навигация по ошибкам
@@ -229,3 +264,7 @@ nnoremap <leader>qn :cnext<CR>
 nnoremap <leader>qp :cprev<CR>
 nnoremap <leader>qf :cfirst<CR>
 nnoremap <leader>ql :clast<CR>
+
+
+" Ctrl + Shift + R — Полный рестарт Vim
+nnoremap <C-S-r> :call RestartVimFull()<CR>

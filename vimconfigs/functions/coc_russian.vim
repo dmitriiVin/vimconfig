@@ -380,10 +380,12 @@ let g:coc_russian_terms = {
 \ 'subclasses': 'подклассы'
 \ }
 
+" === Сортировка ключей по длине (длинные шаблоны применяем первыми) ===
 function! s:CompareByLengthDesc(left, right) abort
     return strlen(a:right) - strlen(a:left)
 endfunction
 
+" === Перевод/локализация диагностического сообщения CoC ===
 function! TranslateCocMessage(msg)
     let result = a:msg
     for pattern in sort(keys(g:coc_russian_dict), 's:CompareByLengthDesc')
@@ -395,6 +397,7 @@ function! TranslateCocMessage(msg)
     return result
 endfunction
 
+" === Обновление quickfix русифицированными CoC-диагностикой ===
 function! ShowDiagnosticsRussian() abort
     " Получаем diagnostics
     let diagnostics = CocAction('diagnosticList')
@@ -410,9 +413,9 @@ function! ShowDiagnosticsRussian() abort
         \ })
     endfor
 
-    " Отправляем в quickfix
+    " Обновляем quickfix без смены фокуса.
+    " Переход в quickfix выполняется только вручную по маппингу :copen.
     call setqflist(qf_list, 'r')
-    copen
 endfunction
 
 " В этом же файле coc_russian.vim

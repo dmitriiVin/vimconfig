@@ -3,53 +3,181 @@ function! s:echo_info(msg)
     echohl Directory | echom a:msg | echohl None
 endfunction
 
+" === Подсветка сообщений: успех ===
 function! s:echo_success(msg)
     echohl Question | echom a:msg | echohl None
 endfunction
 
+" === Подсветка сообщений: предупреждение ===
 function! s:echo_warn(msg)
     echohl WarningMsg | echom a:msg | echohl None
 endfunction
 
+" === Подсветка сообщений: ошибка ===
 function! s:echo_error(msg)
     echohl ErrorMsg | echom a:msg | echohl None
 endfunction
 
+" === Стабильное состояние последнего CMake-контекста ===
+let g:cmake_last_workspace_root = get(g:, 'cmake_last_workspace_root', '')
+let g:cmake_last_cmake_dir = get(g:, 'cmake_last_cmake_dir', '')
+let g:cmake_last_build_dir = get(g:, 'cmake_last_build_dir', '')
+
+" === Безопасный запуск CoC-команды, если она доступна ===
+function! s:CocRunCommandIfExists(command_name) abort
+    if !exists('*CocAction')
+        return 0
+    endif
+
+    let l:commands = []
+    try
+        let l:commands = CocAction('commands')
+    catch
+        return 0
+    endtry
+
+    if index(l:commands, a:command_name) < 0
+        return 0
+    endif
+
+    try
+        call CocAction('runCommand', a:command_name)
+        return 1
+    catch
+        return 0
+    endtry
+endfunction
+
+" === Выбор CMakeLists.txt в текущем workspace ===
+function! s:SelectCMakeFileInWorkspace(workspace_root, prompt_title) abort
+    let l:cmake_files = systemlist('find ' . fnameescape(a:workspace_root) . ' -type f -name "CMakeLists.txt" 2>/dev/null')
+    if empty(l:cmake_files)
+        return ''
+    endif
+
+    " Если известен последний проект, выбираем его автоматически.
+    if !empty(g:cmake_last_cmake_dir)
+        for l:file in l:cmake_files
+            if fnamemodify(l:file, ':h') ==# g:cmake_last_cmake_dir
+                return l:file
+            endif
+        endfor
+    endif
+
+    if len(l:cmake_files) == 1
+        return l:cmake_files[0]
+    endif
+
+    echo a:prompt_title
+    for l:i in range(len(l:cmake_files))
+        echo l:i + 1 . '. ' . l:cmake_files[l:i]
+    endfor
+
+    let l:choice = input('Номер: ')
+    if l:choice !~ '^\d\+$' || l:choice < 1 || l:choice > len(l:cmake_files)
+        call s:echo_warn("🚫 Неверный выбор")
+        return ''
+    endif
+
+    return l:cmake_files[l:choice - 1]
+endfunction
+
+" === Найти ближайший CMakeLists.txt вверх по дереву ===
+function! s:FindCMakeLists(start_dir) abort
+    let l:dir = a:start_dir
+    while l:dir !=# "/"
+        let l:file = l:dir . "/CMakeLists.txt"
+        if filereadable(l:file)
+            return l:file
+        endif
+        let l:dir = fnamemodify(l:dir, ':h')
+    endwhile
+    return ""
+endfunction
+
 " === Генерация CMake (F6) ===
-function! CMakeGenerateFixed()
-    let cmake_file = expand('%:p')
-    if fnamemodify(cmake_file, ':t') !=# 'CMakeLists.txt'
-        call s:echo_warn("⚠️  Выбери CMakeLists.txt")
-        return
-    endif
+function! CMakeGenerateFixed() abort
+    let l:origin_win = win_getid()
+    let l:origin_is_nerdtree = &filetype ==# 'nerdtree'
 
-    let cmake_dir = fnamemodify(cmake_file, ':h')
-    let build_dir = cmake_dir . '/build/' . g:cmake_build_type  " Debug/Release
+    try
+        " --- Поиск CMakeLists.txt в workspace ---
+        let workspace_root = getcwd()
+        let cmake_file = s:SelectCMakeFileInWorkspace(workspace_root, 'Выберите CMakeLists.txt для генерации:')
+        if empty(cmake_file)
+            call s:echo_error("❌ CMakeLists.txt не найден")
+            return
+        endif
 
-    if !isdirectory(build_dir)
-        call system('mkdir -p ' . fnameescape(build_dir))
-    endif
+        let cmake_dir = fnamemodify(cmake_file, ':h')
+        let build_dir = cmake_dir . '/build/' . g:cmake_build_type
 
-    " Добавляем Vcpkg и генератор Ninja
-    let toolchain_arg = "-DCMAKE_TOOLCHAIN_FILE=/Users/dmitriivinogradov/vcpkg/scripts/buildsystems/vcpkg.cmake"
-    let cmd = 'cmake -B ' . fnameescape(build_dir) . ' -S ' . fnameescape(cmake_dir) . ' -G Ninja -DCMAKE_BUILD_TYPE=' . g:cmake_build_type . ' ' . toolchain_arg
+        if !isdirectory(build_dir)
+            call system('mkdir -p ' . fnameescape(build_dir))
+        endif
 
-    call s:echo_info("🔧 Генерация CMake (" . g:cmake_build_type . ") в " . build_dir . " ...")
-    let result = system(cmd)
-    echom result
+        " --- Генерация CMake с Ninja и Vcpkg ---
+        let toolchain_arg = "-DCMAKE_TOOLCHAIN_FILE=/Users/dmitriivinogradov/vcpkg/scripts/buildsystems/vcpkg.cmake"
+        let cmd = 'cmake -B ' . fnameescape(build_dir) . ' -S ' . fnameescape(cmake_dir) .
+                    \ ' -G Ninja -DCMAKE_BUILD_TYPE=' . g:cmake_build_type . ' ' . toolchain_arg .
+                    \ ' -DCMAKE_EXPORT_COMPILE_COMMANDS=ON'
 
-    if v:shell_error == 0
-        call s:echo_success("✅ CMake сгенерирован → " . build_dir)
-    else
-        call s:echo_error("❌ Ошибка при генерации в " . build_dir)
-    endif
+        call s:echo_info("🔧 Генерация CMake (" . g:cmake_build_type . ") в " . build_dir . " ...")
+        let result = system(cmd)
+        echom result
+
+        if v:shell_error == 0
+            call s:echo_success("✅ CMake сгенерирован → " . build_dir)
+            let g:cmake_last_workspace_root = workspace_root
+            let g:cmake_last_cmake_dir = cmake_dir
+            let g:cmake_last_build_dir = build_dir
+
+            " --- Симлинк compile_commands.json в корень проекта ---
+            let cc_path = build_dir . '/compile_commands.json'
+            if filereadable(cc_path)
+                let link_path = workspace_root . '/compile_commands.json'
+                call system('ln -sf ' . fnameescape(cc_path) . ' ' . fnameescape(link_path))
+                call s:echo_info("🔗 compile_commands.json → корень проекта")
+            endif
+
+            " --- Перезапуск CoC/LSP после обновления compile_commands.json ---
+            if exists(':CocRestart')
+                silent! CocRestart
+            elseif exists('*CocAction')
+                call s:CocRunCommandIfExists('workspace.reloadProjects')
+                call s:CocRunCommandIfExists('clangd.restart')
+            endif
+
+            " Очистка quickfix безопасно
+            call setqflist([], 'r')
+
+            " Перерисовать экран
+            redraw!
+
+            call s:echo_info("♻️ Diagnostics обновлены")
+        else
+            call s:echo_error("❌ Ошибка при генерации в " . build_dir)
+        endif
+    finally
+        if l:origin_win > 0
+            silent! call win_gotoid(l:origin_win)
+        endif
+        if l:origin_is_nerdtree && exists(':NERDTreeRefreshRoot')
+            silent! NERDTreeRefreshRoot
+        endif
+    endtry
 endfunction
 
 " === Сборка (F7) ===
-function! CMakeBuildFixed()
-    let cmake_file = expand('%:p')
-    if fnamemodify(cmake_file, ':t') !=# 'CMakeLists.txt'
-        call s:echo_warn("⚠️  Выбери CMakeLists.txt")
+function! CMakeBuildFixed() abort
+    " Для nerdtree/quickfix собираем от cwd, иначе от текущего файла.
+    let cur_dir = (&filetype ==# 'nerdtree' || &buftype ==# 'quickfix') ? getcwd() : expand('%:p:h')
+    let cmake_file = s:FindCMakeLists(cur_dir)
+    if empty(cmake_file)
+        let cmake_file = s:SelectCMakeFileInWorkspace(getcwd(), 'Выберите CMakeLists.txt для сборки:')
+    endif
+    if empty(cmake_file)
+        call s:echo_warn("⚠️  CMakeLists.txt не найден")
         return
     endif
 
@@ -57,9 +185,24 @@ function! CMakeBuildFixed()
     let build_dir = cmake_dir . '/build/' . g:cmake_build_type
 
     if !isdirectory(build_dir)
-        call s:echo_warn("⚠️  Сначала запусти генерацию (F6)")
-        return
+        call s:echo_warn("⚠️  Папка сборки не найдена, запускаю генерацию (F6)...")
+        let g:cmake_last_workspace_root = getcwd()
+        let g:cmake_last_cmake_dir = cmake_dir
+        call CMakeGenerateFixed()
+
+        if !empty(g:cmake_last_build_dir) && isdirectory(g:cmake_last_build_dir)
+            let build_dir = g:cmake_last_build_dir
+        endif
+
+        if !isdirectory(build_dir)
+            call s:echo_error("❌ Не удалось подготовить папку сборки")
+            return
+        endif
     endif
+
+    let g:cmake_last_workspace_root = getcwd()
+    let g:cmake_last_cmake_dir = cmake_dir
+    let g:cmake_last_build_dir = build_dir
 
     let cmd = 'cmake --build ' . fnameescape(build_dir)
     call s:echo_info("⚙️  Сборка (" . g:cmake_build_type . ") в " . build_dir . " ...")
@@ -74,10 +217,11 @@ function! CMakeBuildFixed()
 endfunction
 
 " === Выбор исполняемого файла (F8) ===
-function! CMakeSelectTargetInteractive()
-    let cmake_file = expand('%:p')
-    if fnamemodify(cmake_file, ':t') !=# 'CMakeLists.txt'
-        call s:echo_warn("⚠️  Выбери CMakeLists.txt")
+function! CMakeSelectTargetInteractive() abort
+    let cur_dir = expand('%:p:h')
+    let cmake_file = s:FindCMakeLists(cur_dir)
+    if empty(cmake_file)
+        call s:echo_warn("⚠️  CMakeLists.txt не найден")
         return
     endif
 
@@ -89,10 +233,6 @@ function! CMakeSelectTargetInteractive()
         return
     endif
 
-    " --- рекурсивный поиск исполняемых файлов ---
-    " - тип файла: f (обычный файл)
-    " - права на выполнение: +111 (Unix)
-    " - исключаем все *.a, *.dylib, *.so и папки CMakeFiles
     let all_executables = systemlist(
                 \ 'find ' . fnameescape(build_dir) . ' -type f -perm +111 ' .
                 \ '-not -name "*.a" -not -name "*.so" -not -name "*.dylib" -not -path "*/CMakeFiles/*" 2>/dev/null'
@@ -120,16 +260,17 @@ function! CMakeSelectTargetInteractive()
 endfunction
 
 " === Запуск выбранного таргета (F9) ===
-function! CMakeRunFixed()
+function! CMakeRunFixed() abort
     if empty(g:cmake_selected_target)
-        let cmake_file = expand('%:p')
-        if fnamemodify(cmake_file, ':t') !=# 'CMakeLists.txt'
-            call s:echo_warn("⚠️  Выбери CMakeLists.txt")
+        let cur_dir = expand('%:p:h')
+        let cmake_file = s:FindCMakeLists(cur_dir)
+        if empty(cmake_file)
+            call s:echo_warn("⚠️  CMakeLists.txt не найден")
             return
         endif
 
         let cmake_dir = fnamemodify(cmake_file, ':h')
-        let build_dir = cmake_dir . '/' . g:cmake_build_type
+        let build_dir = cmake_dir . '/build/' . g:cmake_build_type
 
         let auto_exe = systemlist('find ' . fnameescape(build_dir) . ' -type f -executable ! -type d 2>/dev/null | grep -v CMakeFiles | head -1')
         if !empty(auto_exe)
@@ -154,7 +295,7 @@ function! CMakeRunFixed()
 endfunction
 
 " === Переключатель режима сборки (F10) ===
-function! CMakeToggleBuildType()
+function! CMakeToggleBuildType() abort
     if g:cmake_build_type ==# 'Debug'
         let g:cmake_build_type = 'Release'
     else
@@ -163,79 +304,65 @@ function! CMakeToggleBuildType()
     call s:echo_info("🔁 Режим сборки: " . g:cmake_build_type)
 endfunction
 
-" F12 - Создание/открытие CMakeLists.txt в папке NERDTree без закрытия NERDTree
-function! CreateCMakeListsInNERDTree()
+" === Создание/открытие CMakeLists.txt в NERDTree (F12) ===
+function! CreateCMakeListsInNERDTree() abort
     if &filetype == 'nerdtree'
-        " Получаем путь к текущему узлу NERDTree
         let current_path = g:NERDTreeFileNode.GetSelected().path.str()
         if empty(current_path)
             echo "Не удалось получить путь"
             return
         endif
-        
-        " Определяем директорию
+
         if isdirectory(current_path)
             let target_dir = current_path
         else
             let target_dir = fnamemodify(current_path, ':h')
         endif
-        
+
         let cmake_file = target_dir . '/CMakeLists.txt'
-        
-        " Создаем файл если не существует
         if !filereadable(cmake_file)
-            " Создаем файл с базовым содержимым
             let basic_content = [
-                \ 'cmake_minimum_required(VERSION 3.10)',
-                \ '',
-                \ '# Название проекта',
-                \ 'project(MyProject)',
-                \ '',
-                \ '# Настройка стандарта C++',
-                \ 'set(CMAKE_CXX_STANDARD 17)',
-                \ 'set(CMAKE_CXX_STANDARD_REQUIRED ON)',
-                \ '',
-                \ '# Добавьте ваши исходные файлы здесь',
-                \ '# add_executable(${PROJECT_NAME} main.cpp)'
-                \ ]
+                        \ 'cmake_minimum_required(VERSION 3.10)',
+                        \ '',
+                        \ 'project(MyProject)',
+                        \ '',
+                        \ 'set(CMAKE_CXX_STANDARD 17)',
+                        \ 'set(CMAKE_CXX_STANDARD_REQUIRED ON)',
+                        \ '',
+                        \ '# add_executable(${PROJECT_NAME} main.cpp)'
+                        \ ]
             call writefile(basic_content, cmake_file)
             echo "Создан CMakeLists.txt с базовым конфигом"
         else
             echo "CMakeLists.txt уже существует"
         endif
-        
-        " Обновляем NERDTree
+
         NERDTreeRefreshRoot
-        
-        " Переходим в основное окно (рабочую область) перед открытием файла
-        wincmd p  " Переход к предыдущему окну
-        
-        " Если все еще в NERDTree, значит нет других окон - создаем новое
+        wincmd p
         if &filetype == 'nerdtree'
-            wincmd l  " Создаем новое окно справа
+            wincmd l
         endif
-        
-        " Открываем файл в рабочей области
         execute 'edit ' . fnameescape(cmake_file)
-        
     else
         echo "Эта команда работает только в NERDTree"
     endif
 endfunction
 
 " === Быстрый запуск (\ + R + U) ===
-function! CMakeQuickRun()
-    let cmake_file = expand('%:p')
-    if fnamemodify(cmake_file, ':t') !=# 'CMakeLists.txt'
-        call s:echo_warn("⚠️  Выбери CMakeLists.txt")
+function! CMakeQuickRun() abort
+    let cur_dir = expand('%:p:h')
+    let cmake_file = s:FindCMakeLists(cur_dir)
+    if empty(cmake_file)
+        call s:echo_warn("⚠️  CMakeLists.txt не найден")
         return
     endif
 
-    let cmake_dir = fnamemodify(cmake_file, ':h')
-    let build_dir = cmake_dir . '/' . g:cmake_build_type
-
+    let build_dir = fnamemodify(cmake_file, ':h') . '/build/' . g:cmake_build_type
     if !isdirectory(build_dir)
         call CMakeGenerateFixed()
+        if !empty(g:cmake_last_build_dir) && isdirectory(g:cmake_last_build_dir)
+            let build_dir = g:cmake_last_build_dir
+        endif
     endif
 
     call CMakeBuildFixed()
@@ -250,12 +377,11 @@ function! CMakeQuickRun()
     endif
 endfunction
 
-" ==== ПОКАЗАТЬ ТЕККУЩИЙ ТИП СБОРКИ ===
-function! ShowCMakeBuildType()
+" ==== ПОКАЗАТЬ ТЕКУЩИЙ ТИП СБОРКИ ===
+function! ShowCMakeBuildType() abort
     if exists("g:cmake_build_type")
         call s:echo_success("✅ Текущий тип сборки: " . g:cmake_build_type)
     else
         call s:echo_warn("⚠️  Тип сборки не установлен (по умолчанию: Debug)")
     endif
 endfunction
-
