@@ -73,7 +73,7 @@ if command -v curl >/dev/null 2>&1 && command -v unzip >/dev/null 2>&1; then
     trap 'rm -rf "$TEMP_DIR"' EXIT
 
     echo "Скачиваем пакет шрифтов..."
-    if curl -fL "$FONT_URL" -o "$TEMP_DIR/fonts.zip"; then
+    if curl -fsSL "$FONT_URL" -o "$TEMP_DIR/fonts.zip" 2>/dev/null; then
         unzip -oq "$TEMP_DIR/fonts.zip" -d "$TEMP_DIR/fonts"
 
         OS="$(uname)"
@@ -94,7 +94,7 @@ if command -v curl >/dev/null 2>&1 && command -v unzip >/dev/null 2>&1; then
             echo "Не удалось определить директорию шрифтов для ОС: $OS"
         fi
     else
-        echo "Не удалось скачать шрифты, шаг пропущен."
+        echo "Не удалось скачать пакет шрифтов (URL недоступен), шаг пропущен."
     fi
 else
     echo "curl/unzip недоступны, установка шрифта пропущена."
@@ -103,7 +103,9 @@ fi
 # Устанавливаем плагины через vim-plug.
 if command -v vim >/dev/null 2>&1; then
     echo "Устанавливаем плагины Vim..."
-    vim -E -s +PlugInstall +qall || echo "Предупреждение: PlugInstall завершился с ошибкой."
+    if ! vim -Nu "$DEST_VIMRC" -N -n -E +PlugInstall +qall; then
+        echo "Предупреждение: PlugInstall завершился с ошибкой."
+    fi
 else
     echo "vim не найден в PATH, пропускаем PlugInstall."
 fi
