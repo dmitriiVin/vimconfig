@@ -374,6 +374,16 @@ function! CMakeDeleteBuildDir() abort
     call s:echo_success("🧹 Папка build удалена: " . l:build_root)
 endfunction
 
+" === Найти исполняемые файлы для запуска ===
+function! s:GetExecutableCandidates(build_dir) abort
+    let l:executables = systemlist(
+                \ 'find ' . fnameescape(a:build_dir) . ' -type f -perm -111 ' .
+                \ '-not -name "*.a" -not -name "*.so" -not -name "*.dylib" -not -path "*/CMakeFiles/*" 2>/dev/null'
+                \ )
+    call sort(l:executables)
+    return l:executables
+endfunction
+
 " === Выбор исполняемого файла (F8) ===
 function! CMakeSelectTargetInteractive() abort
     let cmake_file = s:FindPreferredCMakeForBuild()
@@ -390,10 +400,7 @@ function! CMakeSelectTargetInteractive() abort
         return
     endif
 
-    let all_executables = systemlist(
-                \ 'find ' . fnameescape(build_dir) . ' -type f -perm +111 ' .
-                \ '-not -name "*.a" -not -name "*.so" -not -name "*.dylib" -not -path "*/CMakeFiles/*" 2>/dev/null'
-                \ )
+    let all_executables = s:GetExecutableCandidates(build_dir)
 
     if empty(all_executables)
         call s:echo_error("❌ Исполняемые файлы не найдены в " . build_dir)
@@ -528,10 +535,11 @@ function! CMakeQuickRun() abort
     endif
 
     call CMakeBuildFixed()
+    let build_dir = s:ResolveBuildDir(cmake_dir)
 
-    let auto_exe = systemlist('find ' . fnameescape(build_dir) . ' -type f -executable ! -type d 2>/dev/null | grep -v CMakeFiles | head -1')
-    if !empty(auto_exe)
-        let g:cmake_selected_target = auto_exe[0]
+    let l:executables = s:GetExecutableCandidates(build_dir)
+    if !empty(l:executables)
+        let g:cmake_selected_target = l:executables[0]
         call s:echo_info("✅ Автоматически выбран: " . g:cmake_selected_target)
         call CMakeRunFixed()
     else

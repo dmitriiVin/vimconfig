@@ -93,7 +93,7 @@ function! ShowVimCommandsHelp() abort
                 \ '  F9              - запуск выбранного файла',
                 \ '  F10             - переключить Debug/Release',
                 \ '  F12             - создать/открыть CMakeLists.txt из NERDTree',
-                \ '  \ru             - быстрый цикл: generate+build+run',
+                \ '  \ru             - быстрый цикл: generate+build+auto-select+run',
                 \ '  \bt             - показать текущий build type',
                 \ '',
                 \ 'Git и GitHub:',
