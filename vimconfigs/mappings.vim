@@ -110,7 +110,7 @@ nnoremap <F8> :call CMakeSelectTargetInteractive()<CR>
 nnoremap <F9> :call CMakeRunFixed()<CR>
 
 " F10 - переключение с debug на Release и наоборот
-nnoremap <silent> <F10> :call CMakeToggleBuildType()<CR>
+nnoremap <silent> <F10> <Cmd>call CMakeToggleBuildType()<CR>
 
 " F12 - Создание/открытие CMakeLists.txt в папке NERDTree без закрытия NERDTree
 nnoremap <F12> :call CreateCMakeListsInNERDTree()<CR>
