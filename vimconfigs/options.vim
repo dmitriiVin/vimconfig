@@ -4,6 +4,8 @@ set number
 set autoindent
 set smartindent
 set hidden
+set signcolumn=auto
+highlight SignColumn ctermbg=NONE guibg=NONE
 
 " Настройка табуляции
 set tabstop=4

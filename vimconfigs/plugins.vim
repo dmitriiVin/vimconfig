@@ -18,7 +18,6 @@ Plug 'bfrg/vim-cpp-modern'
 Plug 'cdelledonne/vim-cmake'           " Основной функционал
 Plug 'pboettch/vim-cmake-syntax'       " Подсветка синтаксиса
 Plug 'ilyachur/cmake4vim'              " Дополнение и утилиты
-Plug 'neoclide/coc.nvim', {'branch': 'release'}
 
 " === GIT И GITHUB ИНТЕГРАЦИЯ ===
 Plug 'tpope/vim-fugitive'      " Git интеграция

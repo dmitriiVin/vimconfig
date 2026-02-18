@@ -117,6 +117,49 @@ function! s:ResolveBuildDir(cmake_dir) abort
     return l:candidates[0]
 endfunction
 
+" === Найти toolchain-файл vcpkg автоматически ===
+function! s:DetectVcpkgToolchain(workspace_root, cmake_dir) abort
+    if exists('g:cmake_vcpkg_toolchain_file') && !empty(g:cmake_vcpkg_toolchain_file) && filereadable(g:cmake_vcpkg_toolchain_file)
+        return g:cmake_vcpkg_toolchain_file
+    endif
+
+    let l:candidate_roots = []
+
+    if exists('$VCPKG_ROOT') && !empty($VCPKG_ROOT)
+        call add(l:candidate_roots, $VCPKG_ROOT)
+    endif
+
+    if exists('g:cmake_vcpkg_root') && !empty(g:cmake_vcpkg_root)
+        call add(l:candidate_roots, g:cmake_vcpkg_root)
+    endif
+
+    call add(l:candidate_roots, a:workspace_root . '/vcpkg')
+    call add(l:candidate_roots, a:cmake_dir . '/vcpkg')
+    call add(l:candidate_roots, expand('~/vcpkg'))
+    call add(l:candidate_roots, expand('~/.vcpkg'))
+
+    let l:vcpkg_exe = exepath('vcpkg')
+    if !empty(l:vcpkg_exe)
+        call add(l:candidate_roots, fnamemodify(resolve(l:vcpkg_exe), ':h'))
+    endif
+
+    let l:normalized_roots = uniq(map(l:candidate_roots, 'fnamemodify(v:val, ":p")'))
+    for l:root in l:normalized_roots
+        if empty(l:root)
+            continue
+        endif
+
+        let l:toolchain_path = l:root . '/scripts/buildsystems/vcpkg.cmake'
+        if filereadable(l:toolchain_path)
+            let g:cmake_vcpkg_root = l:root
+            let g:cmake_vcpkg_toolchain_file = l:toolchain_path
+            return l:toolchain_path
+        endif
+    endfor
+
+    return ''
+endfunction
+
 " === Генерация CMake для выбранной директории ===
 function! s:GenerateForDirectory(workspace_root, cmake_dir) abort
     let l:build_dir = s:ResolveBuildDir(a:cmake_dir)
@@ -124,13 +167,18 @@ function! s:GenerateForDirectory(workspace_root, cmake_dir) abort
         call mkdir(l:build_dir, 'p')
     endif
 
-    " --- Генерация CMake с Ninja и Vcpkg ---
-    let toolchain_arg = "-DCMAKE_TOOLCHAIN_FILE=/Users/dmitriivinogradov/vcpkg/scripts/buildsystems/vcpkg.cmake"
+    " --- Генерация CMake с Ninja и (опционально) vcpkg ---
+    let l:toolchain_file = s:DetectVcpkgToolchain(a:workspace_root, a:cmake_dir)
+    let l:toolchain_arg = empty(l:toolchain_file) ? '' : ' -DCMAKE_TOOLCHAIN_FILE=' . fnameescape(l:toolchain_file)
+
     let cmd = 'cmake -B ' . fnameescape(l:build_dir) . ' -S ' . fnameescape(a:cmake_dir) .
-                \ ' -G Ninja -DCMAKE_BUILD_TYPE=' . g:cmake_build_type . ' ' . toolchain_arg .
+                \ ' -G Ninja -DCMAKE_BUILD_TYPE=' . g:cmake_build_type . l:toolchain_arg .
                 \ ' -DCMAKE_EXPORT_COMPILE_COMMANDS=ON'
 
     call s:echo_info("🔧 Генерация CMake (" . g:cmake_build_type . ") в " . l:build_dir . " ...")
+    if !empty(l:toolchain_file)
+        call s:echo_info("📦 Используется vcpkg toolchain: " . l:toolchain_file)
+    endif
     let result = system(cmd)
     echom result
 

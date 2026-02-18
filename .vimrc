@@ -2,6 +2,13 @@
 " ===      ОСНОВНОЙ ФАЙЛ       ===
 " ================================
 
+" === CoC: использовать Node LTS, если найден, иначе системный node ===
+if filereadable('/opt/homebrew/opt/node@20/bin/node')
+    let g:coc_node_path = '/opt/homebrew/opt/node@20/bin/node'
+elseif executable('node')
+    let g:coc_node_path = exepath('node')
+endif
+
 " подключаем авто функции
 source ~/.vim/vimconfigs/autocmd.vim
 
@@ -25,11 +32,9 @@ let g:coc_global_extensions = [
             \ 'coc-clangd',
             \ 'coc-json',
             \ 'coc-tsserver',
-            \ 'coc-html',
             \ 'coc-css',
             \ 'coc-yaml',
             \ 'coc-pyright',
-            \ 'coc-omnisharp',
             \ 'coc-rust-analyzer',
             \ 'coc-cmake',
             \ 'coc-sh'

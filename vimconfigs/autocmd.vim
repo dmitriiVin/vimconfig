@@ -208,6 +208,12 @@ augroup CompileCommandsWatcher
     endif
 augroup END
 
+" === Универсальное автообновление CoC-диагностики для всех языков ===
+augroup CocDiagnosticsLiveRefresh
+    autocmd!
+    autocmd BufEnter,BufWritePost,InsertLeave,FocusGained * if exists('*CocActionAsync') | silent! call CocActionAsync('diagnosticRefresh') | endif
+augroup END
+
 " === Авто-закрытие quickfix при :q или :q! ===
 augroup AutoCloseQuickfix
     autocmd!
@@ -230,8 +236,8 @@ autocmd FileType nerdtree nnoremap <silent><buffer> <S-Right> <C-w>l
 autocmd FileType nerdtree nnoremap <silent><buffer> <S-Up> <C-w>k
 autocmd FileType nerdtree nnoremap <silent><buffer> <S-Down> <C-w>j
 
-autocmd FileType nerdtree setlocal nobuflisted
-autocmd FileType qf setlocal nobuflisted
+autocmd FileType nerdtree setlocal nobuflisted signcolumn=no
+autocmd FileType qf setlocal nobuflisted signcolumn=no
 autocmd FileType qf nnoremap <buffer> <Tab> <nop>
 autocmd FileType qf nnoremap <buffer> <S-Tab> <nop>
 
