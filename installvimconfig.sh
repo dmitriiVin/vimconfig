@@ -158,6 +158,44 @@ pacman_install_if_missing() {
     fi
 }
 
+ensure_vim_for_brew() {
+    # Если vim уже доступен (например /usr/bin/vim), ничего не ставим.
+    if have_cmd vim; then
+        log "skip: vim уже доступен в PATH ($(command -v vim))."
+        return 0
+    fi
+
+    # На macOS часто установлен macvim, который конфликтует с формулой vim.
+    if [[ "$OS" == "Darwin" ]] && have_cmd brew && brew list --cask macvim >/dev/null 2>&1; then
+        warn "macvim установлен. Пропускаю brew install vim (конфликт формул)."
+        warn "Если нужен консольный vim из brew: brew unlink macvim && brew install vim"
+        return 0
+    fi
+
+    brew_install_if_missing vim || true
+}
+
+ensure_clangd_for_brew() {
+    if have_cmd clangd; then
+        log "skip: clangd уже доступен в PATH ($(command -v clangd))."
+        return 0
+    fi
+
+    # На Homebrew clangd входит в пакет llvm.
+    brew_install_if_missing llvm || true
+
+    local llvm_prefix=""
+    llvm_prefix="$(brew --prefix llvm 2>/dev/null || true)"
+    if [[ -n "$llvm_prefix" && -x "$llvm_prefix/bin/clangd" ]]; then
+        append_line_if_missing "$HOME/.zprofile" ""
+        append_line_if_missing "$HOME/.zprofile" "# VimConfig llvm"
+        append_line_if_missing "$HOME/.zprofile" "export PATH=\"$llvm_prefix/bin:\$PATH\""
+        log "clangd найден: $llvm_prefix/bin/clangd"
+    else
+        warn "clangd не найден после установки llvm. Установите clangd вручную."
+    fi
+}
+
 install_base_dependencies() {
     log "Проверка базовых зависимостей..."
 
@@ -180,8 +218,8 @@ install_base_dependencies() {
         brew_install_if_missing python || true
         brew_install_if_missing node@20 || true
         brew_install_if_missing gh || true
-        brew_install_if_missing vim || true
-        brew_install_if_missing clangd || true
+        ensure_vim_for_brew
+        ensure_clangd_for_brew
         brew_install_if_missing neocmakelsp || true
 
         # Ноды для CoC: предпочитаем node@20 в PATH.
@@ -625,7 +663,10 @@ install_vim_plugins() {
     fi
 
     log "Устанавливаем плагины Vim..."
-    vim -Nu "$DEST_VIMRC" -N -n -E +PlugInstall +qall || warn "PlugInstall завершился с ошибкой."
+    vim -Nu "$DEST_VIMRC" -N -n -es \
+        -c 'set nomore' \
+        -c 'silent! PlugInstall --sync' \
+        -c 'qa!' || warn "PlugInstall завершился с ошибкой."
 }
 
 main() {

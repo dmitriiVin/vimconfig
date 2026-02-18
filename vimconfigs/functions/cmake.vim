@@ -158,9 +158,9 @@ endfunction
 function! s:SyncTree(src_dir, dst_dir) abort
     call mkdir(a:dst_dir, 'p')
     let l:cmd = 'rsync -a --delete ' . join(s:GetCodeProfileExcludes(), ' ')
-                \ . ' ' . fnameescape(a:src_dir . '/')
-                \ . ' ' . fnameescape(a:dst_dir . '/')
-                \ . ' 2>&1'
+                \ . ' ' . shellescape(a:src_dir . '/')
+                \ . ' ' . shellescape(a:dst_dir . '/')
+                \ . ' </dev/null 2>&1'
     let l:result = system(l:cmd)
     return [v:shell_error, l:result]
 endfunction
@@ -225,6 +225,12 @@ function! s:HasModifiedWorkBuffers() abort
     return 0
 endfunction
 
+function! s:SaveAllWorkBuffers() abort
+    " Автосохраняем без интерактивного confirm, чтобы F10 не зависел от ввода в терминал.
+    silent! wall
+    return !s:HasModifiedWorkBuffers()
+endfunction
+
 function! s:SwitchCodeProfile(cmake_dir, old_build_type, new_build_type) abort
     if !s:EnsureCodeProfiles(a:cmake_dir)
         return 0
@@ -244,17 +250,9 @@ function! s:SwitchCodeProfile(cmake_dir, old_build_type, new_build_type) abort
     let l:from_dir = s:GetCodeProfileDir(a:cmake_dir, l:active_profile)
     let l:to_dir = s:GetCodeProfileDir(a:cmake_dir, l:to_profile)
 
-    if s:HasModifiedWorkBuffers()
-        let l:save_now = confirm("Есть несохраненные изменения.\nСохранить перед переключением версии кода?", "&Да\n&Нет", 1)
-        if l:save_now != 1
-            call s:echo_warn("🚫 Переключение версии кода отменено")
-            return 0
-        endif
-        silent! wall
-        if s:HasModifiedWorkBuffers()
-            call s:echo_warn("⚠️  Не все буферы удалось сохранить")
-            return 0
-        endif
+    if s:HasModifiedWorkBuffers() && !s:SaveAllWorkBuffers()
+        call s:echo_warn("⚠️  Не все буферы удалось сохранить перед переключением профиля")
+        return 0
     endif
 
     let [l:save_code, l:save_msg] = s:SyncTree(a:cmake_dir, l:from_dir)

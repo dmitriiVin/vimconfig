@@ -114,7 +114,7 @@ vimconfig/
 - `node@20`
 - `gh`
 - `vim`
-- `clangd`
+- `llvm` (включает `clangd`)
 - `neocmakelsp`
 
 ### 4.2 Linux fallback (если brew не удалось)
