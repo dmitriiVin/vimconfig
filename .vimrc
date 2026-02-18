@@ -2,6 +2,10 @@
 " ===      ОСНОВНОЙ ФАЙЛ       ===
 " ================================
 
+let g:git_default_remote_url_template = 'https://github.com/dmitriiVin/{repo}.git'
+let g:git_auto_create_github_repo = 1
+let g:git_auto_create_repo_visibility = 'public'
+
 " === CoC: использовать Node LTS, если найден, иначе системный node ===
 if filereadable('/opt/homebrew/opt/node@20/bin/node')
     let g:coc_node_path = '/opt/homebrew/opt/node@20/bin/node'

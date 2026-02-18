@@ -47,7 +47,7 @@ function! s:EnsureLocalGitRepo(...) abort
 
     let l:init_now = confirm(
                 \ "Локальный Git-репозиторий не найден.\nИнициализировать его в текущей папке?",
-                \ "&Да\n&Нет",
+                \ "&Yes\n&No",
                 \ 1
                 \ )
     if l:init_now != 1
@@ -80,7 +80,126 @@ function! s:EnsureLocalGitRepo(...) abort
     endif
 
     echohl Question | echom "✅ Локальный Git инициализирован в " . getcwd() | echohl None
+    call s:AutoSetupOriginAfterInit()
     return !empty(s:GetGitRoot())
+endfunction
+
+" === Построить URL origin из шаблона ===
+function! s:BuildOriginUrlFromTemplate(template) abort
+    let l:repo_name = fnamemodify(getcwd(), ':t')
+    return substitute(a:template, '{repo}', l:repo_name, 'g')
+endfunction
+
+" === Получить owner/repo из GitHub URL ===
+function! s:GetGithubRepoSlug(remote_url) abort
+    let l:url = substitute(a:remote_url, '/\+$', '', '')
+    let l:url = substitute(l:url, '\.git$', '', '')
+
+    if l:url =~# '^git@github\.com:'
+        return substitute(l:url, '^git@github\.com:', '', '')
+    endif
+    if l:url =~# '^https\?://github\.com/'
+        return substitute(l:url, '^https\?://github\.com/', '', '')
+    endif
+    if l:url =~# '^ssh://git@github\.com/'
+        return substitute(l:url, '^ssh://git@github\.com/', '', '')
+    endif
+
+    return ''
+endfunction
+
+" === Убедиться, что origin существует на GitHub ===
+function! s:EnsureOriginRemoteExists() abort
+    let l:origin_url = trim(system('git remote get-url origin 2>/dev/null'))
+    if v:shell_error != 0 || empty(l:origin_url)
+        return 0
+    endif
+
+    call system('git ls-remote origin 2>/dev/null')
+    if v:shell_error == 0
+        return 1
+    endif
+
+    if !get(g:, 'git_auto_create_github_repo', 1)
+        echohl WarningMsg | echom "⚠️  origin недоступен: " . l:origin_url | echohl None
+        return 0
+    endif
+
+    let l:repo_slug = s:GetGithubRepoSlug(l:origin_url)
+    if empty(l:repo_slug)
+        echohl WarningMsg | echom "⚠️  origin не найден и авто-создание поддерживается только для github.com" | echohl None
+        return 0
+    endif
+
+    if !executable('gh')
+        echohl ErrorMsg | echom "❌ origin не существует, установите GitHub CLI: brew install gh" | echohl None
+        return 0
+    endif
+
+    call system('gh auth status >/dev/null 2>&1')
+    if v:shell_error != 0
+        echohl ErrorMsg | echom "❌ GitHub CLI не авторизован. Выполните: gh auth login" | echohl None
+        return 0
+    endif
+
+    let l:visibility = tolower(get(g:, 'git_auto_create_repo_visibility', 'public'))
+    let l:visibility_flag = l:visibility ==# 'private' ? '--private' : '--public'
+    let l:create_result = system('gh repo create ' . shellescape(l:repo_slug) . ' ' . l:visibility_flag . ' 2>&1')
+    if v:shell_error != 0
+        echohl ErrorMsg | echom "❌ Не удалось создать GitHub-репозиторий: " . l:repo_slug | echohl None
+        echom l:create_result
+        return 0
+    endif
+
+    call system('git ls-remote origin 2>/dev/null')
+    if v:shell_error != 0
+        echohl WarningMsg | echom "⚠️  Репозиторий создан, но origin пока недоступен: " . l:origin_url | echohl None
+        return 0
+    endif
+
+    echohl Question | echom "✅ GitHub-репозиторий создан: " . l:repo_slug | echohl None
+    return 1
+endfunction
+
+" === Автонастройка origin после git init ===
+function! s:AutoSetupOriginAfterInit() abort
+    " Если origin уже есть, ничего не меняем.
+    call system('git remote get-url origin >/dev/null 2>&1')
+    if v:shell_error == 0
+        call s:EnsureOriginRemoteExists()
+        return
+    endif
+
+    " Приоритет:
+    " 1) g:git_default_remote_url_template
+    " 2) git config --global vimconfig.defaultRemoteUrlTemplate
+    let l:template = get(g:, 'git_default_remote_url_template', '')
+    if empty(l:template)
+        let l:template = trim(system('git config --global vimconfig.defaultRemoteUrlTemplate 2>/dev/null'))
+    endif
+
+    if empty(l:template)
+        echohl WarningMsg | echom "⚠️  origin не настроен: задайте g:git_default_remote_url_template или git config --global vimconfig.defaultRemoteUrlTemplate" | echohl None
+        return
+    endif
+
+    let l:origin_url = s:BuildOriginUrlFromTemplate(l:template)
+    if empty(l:origin_url)
+        return
+    endif
+
+    let l:add_result = system('git remote add origin ' . shellescape(l:origin_url) . ' 2>&1')
+    if v:shell_error != 0
+        echohl ErrorMsg | echom "❌ Не удалось добавить origin" | echohl None
+        echom l:add_result
+        return
+    endif
+
+    " Чтобы обычный git push сразу выставлял upstream для текущей ветки.
+    call system('git config --local push.autoSetupRemote true 2>/dev/null')
+    call system('git config --local push.default current 2>/dev/null')
+    echohl Question | echom "✅ origin добавлен: " . l:origin_url | echohl None
+    call s:EnsureOriginRemoteExists()
 endfunction
 
 " === Имя текущей ветки ===
@@ -239,7 +358,7 @@ function! GitConfigureBuildBranchesInteractive() abort
 
     let l:all_local = systemlist('git for-each-ref --format="%(refname:short)" refs/heads 2>/dev/null')
     if index(l:all_local, l:debug_branch) < 0
-        let l:create_debug = confirm("Ветки " . l:debug_branch . " нет. Создать её?", "&Да\n&Нет", 1)
+        let l:create_debug = confirm("Ветки " . l:debug_branch . " нет. Создать её?", "&Yes\n&No", 1)
         if l:create_debug != 1
             echohl WarningMsg | echom "🚫 Настройка отменена" | echohl None
             return
@@ -253,7 +372,7 @@ function! GitConfigureBuildBranchesInteractive() abort
     endif
 
     if index(l:all_local, l:release_branch) < 0
-        let l:create_release = confirm("Ветки " . l:release_branch . " нет. Создать её?", "&Да\n&Нет", 1)
+        let l:create_release = confirm("Ветки " . l:release_branch . " нет. Создать её?", "&Yes\n&No", 1)
         if l:create_release != 1
             echohl WarningMsg | echom "🚫 Настройка отменена" | echohl None
             return
@@ -390,3 +509,7 @@ function! GitSwitchWorktreeInteractive() abort
     endif
     echohl Question | echom "✅ Переключено на worktree: " . l:selected | echohl None
 endfunction
+
+" === Команды управления локальными Git-ветками ===
+command! -nargs=0 GitBranchSwitch call GitSwitchBranchInteractive()
+command! -nargs=0 GitBranchCreate call GitCreateBranchInteractive()

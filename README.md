@@ -1,43 +1,50 @@
 # VimConfig
 
-Подробная модульная конфигурация Vim для ежедневной разработки с упором на:
+Максимально подробная модульная конфигурация Vim для разработки с фокусом на:
 
-- C/C++ и CMake,
-- быстрый цикл `generate -> build -> run`,
+- C/C++ + CMake,
 - постоянный мониторинг ошибок через quickfix,
-- удобную навигацию по буферам/окнам,
-- гибкую настройку тем и GUI-шрифтов,
-- стабильную установку на macOS и Linux.
+- быстрый цикл `generate -> build -> run`,
+- локальные версии кода `Debug/Release`,
+- удобный Git/Fugitive workflow,
+- автоподключение тем и шрифтов.
 
-Конфиг разворачивается из этого репозитория в `~/.vim` и `~/.vimrc`.
-
----
-
-## 1. Что именно дает этот конфиг
-
-1. Единый `F`-workflow для CMake:
-   - `F6` генерация,
-   - `F7` сборка,
-   - `F8` выбор исполняемого файла,
-   - `F9` запуск,
-   - `F10` переключение `Debug/Release`.
-2. Локальные версии кода для `Debug/Release`:
-   - при `F10` код может автоматически подменяться между профилями,
-   - профили хранятся в `.vim-code-profiles/debug` и `.vim-code-profiles/release`.
-3. Автоматический quickfix-монитор:
-   - открывается автоматически,
-   - не перехватывает фокус,
-   - используется как панель мониторинга ошибок.
-4. CoC/LSP для популярных языков (через `coc.nvim` и расширения).
-5. Модульность:
-   - `mappings.vim` — только клавиши,
-   - `options.vim` — только опции,
-   - `autocmd.vim` — автокоманды,
-   - `functions/*.vim` — функции по подсистемам.
+Конфигурация ставится из этого репозитория в `~/.vim` и `~/.vimrc`.
 
 ---
 
-## 2. Полная структура репозитория
+## 1. Основные возможности
+
+1. CMake workflow на горячих клавишах:
+   - `F6` — generate,
+   - `F7` — build,
+   - `F8` — выбор исполняемого файла,
+   - `F9` — запуск,
+   - `F10` — переключение `Debug/Release`.
+2. Локальные профили кода:
+   - `.vim-code-profiles/debug`
+   - `.vim-code-profiles/release`
+   - при `F10` код синхронизируется между профилями.
+3. Диагностика и quickfix:
+   - окно quickfix используется как монитор,
+   - не обязано перехватывать основной фокус,
+   - навигация по ошибкам отдельными биндами.
+4. LSP/диагностика через `coc.nvim`:
+   - C/C++, CMake, Python, Rust, JS/TS, JSON, CSS, YAML, Shell.
+5. Git-инструменты:
+   - status/commit/push/pull,
+   - интерактивное переключение и создание веток,
+   - поддержка `worktree`.
+6. Автоматическое создание удалённого репозитория GitHub (опционально):
+   - при `git init` из Vim-функций добавляется `origin`,
+   - если репозитория на GitHub нет, он может быть создан через `gh`.
+7. Темы и шрифты:
+   - интерактивный выбор темы (`\th`) и шрифта (`\ff`),
+   - запоминание темы между запусками Vim.
+
+---
+
+## 2. Структура репозитория
 
 ```text
 vimconfig/
@@ -52,21 +59,7 @@ vimconfig/
     ├── plugins.vim
     ├── theme_state.vim
     ├── colors/
-    │   ├── blue_dark.vim
-    │   ├── desert_dark.vim
-    │   ├── elflord_dark.vim
-    │   ├── evening_dark.vim
-    │   ├── fallout.vim
-    │   ├── github_dark.vim
-    │   ├── github_light.vim
-    │   ├── gruvbox_dark_hard.vim
-    │   ├── gruvbox_dark_soft.vim
-    │   ├── gruvbox_light_soft.vim
-    │   ├── industry_dark.vim
-    │   ├── murphy_dark.vim
-    │   ├── ron_dark.vim
-    │   ├── slate_dark.vim
-    │   └── zellner_light.vim
+    │   └── *.vim
     └── functions/
         ├── cmake.vim
         ├── coc_russian.vim
@@ -79,71 +72,92 @@ vimconfig/
 
 ---
 
-## 3. Назначение каждого ключевого файла
+## 3. Что делает `installvimconfig.sh`
 
-### 3.1 Верхний уровень
+Скрипт:
 
-- `.vimrc`
-  - точка входа,
-  - задает `g:coc_node_path`,
-  - подключает все модули,
-  - задает `g:coc_global_extensions`.
-- `coc-settings.json`
-  - CoC diagnostics,
-  - pyright,
-  - neocmakelsp,
-  - root patterns.
-- `installvimconfig.sh`
-  - установка зависимостей,
-  - копирование конфигов,
-  - установка/обновление `vim-plug`, CoC extensions и плагинов.
-- `README.md`
-  - эта подробная документация.
-
-### 3.2 Каталог `vimconfigs/`
-
-- `options.vim`
-  - `number`, `indent`, `search`, `wildmenu`, `airline`,
-  - CMake глобальные переменные,
-  - theme/font subsystem.
-- `mappings.vim`
-  - все горячие клавиши.
-- `autocmd.vim`
-  - quickfix monitor,
-  - compile_commands watcher,
-  - live diagnostic refresh,
-  - NERDTree window-local rules.
-- `plugins.vim`
-  - список плагинов (`vim-plug`).
-- `theme_state.vim`
-  - автогенерируемое сохранение последней темы.
-
-### 3.3 Каталог `vimconfigs/functions/`
-
-- `cmake.vim`
-  - логика F6/F7/F8/F9/F10/F12,
-  - автогенерация build,
-  - выбор/запуск target,
-  - локальные профили кода `Debug/Release`.
-- `help.vim`
-  - встроенная справка `\h` в текущем окне,
-  - выход из help по `Esc`.
-- `nerdtree.vim`
-  - операции создания/переименования/удаления в дереве.
-- `runcode.vim`
-  - запуск файлов по filetype (F5).
-- `terminal.vim`
-  - утилиты терминального режима и path completion.
-- `github.vim`
-  - fugitive/rhubarb функции.
-- `coc_russian.vim`
-  - русифицированные helper-команды для CoC.
+1. Ставит зависимости (предпочтительно через Homebrew и на macOS, и на Linux).
+2. При отсутствии brew пробует fallback на системный пакетный менеджер Linux (`apt`, `dnf`, `pacman`).
+3. Применяет безопасные глобальные git-настройки для push:
+   - `push.autoSetupRemote=true`
+   - `push.default=current`
+   - `remote.pushDefault=origin`
+4. Делает backup существующего `~/.vimrc`.
+5. Копирует:
+   - `.vimrc` -> `~/.vimrc`
+   - `vimconfigs/*` -> `~/.vim/vimconfigs/`
+   - `coc-settings.json` -> `~/.vim/coc-settings.json` и `~/.config/coc/coc-settings.json`
+6. Ставит/обновляет `vim-plug`.
+7. Ставит CoC-расширения через npm.
+8. Ставит набор Nerd Fonts (расширенный список).
+9. Проверяет `gh auth status` и запускает `gh auth login` (если нужен интерактивный вход).
+10. Запускает `:PlugInstall`.
 
 ---
 
-## 4. Установка
+## 4. Автоустановка зависимостей
 
-## 4.1 Быстрая установка (рекомендуется)
+### 4.1 Через Homebrew (приоритетно)
+
+Скрипт пытается установить:
+
+- `git`
+- `curl`
+- `rsync`
+- `unzip`
+- `cmake`
+- `ninja`
+- `ripgrep`
+- `fd`
+- `shellcheck`
+- `python`
+- `node@20`
+- `gh`
+- `vim`
+- `clangd`
+- `neocmakelsp`
+
+### 4.2 Linux fallback (если brew не удалось)
+
+- `apt` / `dnf` / `pacman` best-effort установка аналогичных пакетов.
+- Для Linux дополнительно ставится `fontconfig` (для `fc-cache`).
+
+---
+
+## 5. Шрифты
+
+### 5.1 Что ставится автоматически
+
+На macOS через `brew cask` (если возможно):
+
+- `font-jetbrains-mono-nerd-font`
+- `font-fira-code-nerd-font`
+- `font-hack-nerd-font`
+- `font-caskaydia-cove-nerd-font`
+- `font-meslo-lg-nerd-font`
+- `font-source-code-pro`
+
+Fallback (и основной путь на Linux) — загрузка из Nerd Fonts release:
+
+- JetBrainsMono
+- FiraCode
+- Hack
+- CascadiaCode
+- Meslo
+- SourceCodePro
+- Iosevka
+- Terminus
+
+### 5.2 Где оказываются шрифты
+
+- macOS: `~/Library/Fonts`
+- Linux: `~/.local/share/fonts`
+
+---
+
+## 6. Установка
+
+### 6.1 Быстрый старт
 
 ```bash
 git clone https://github.com/dmitriiVin/vimconfig.git
@@ -152,60 +166,53 @@ chmod +x installvimconfig.sh
 ./installvimconfig.sh
 ```
 
-Скрипт выполняет:
+### 6.2 После установки
 
-1. Проверку и установку базовых зависимостей.
-2. Backup текущего `~/.vimrc`.
-3. Копирование `.vimrc` и `vimconfigs/` в `~/.vim`.
-4. Копирование `coc-settings.json` в:
-   - `~/.vim/coc-settings.json`,
-   - `~/.config/coc/coc-settings.json`.
-5. Установку `vim-plug`.
-6. Установку CoC extensions через npm.
-7. Best-effort установку шрифтов.
-8. `PlugInstall`.
-
-## 4.2 Установка вручную
-
-```bash
-mkdir -p ~/.vim/vimconfigs
-cp -R vimconfigs/* ~/.vim/vimconfigs/
-cp .vimrc ~/.vimrc
-cp coc-settings.json ~/.vim/coc-settings.json
-mkdir -p ~/.config/coc
-cp coc-settings.json ~/.config/coc/coc-settings.json
-```
-
-Затем в Vim:
+Открой Vim и при необходимости выполни:
 
 ```vim
-:PlugInstall
 :CocRestart
+:PlugInstall
 ```
 
 ---
 
-## 5. Зависимости
+## 7. Глобальные переменные в `.vimrc`
 
-### 5.1 macOS (через brew)
+Верхние ключевые параметры:
 
-- `git`, `curl`, `rsync`, `unzip`
-- `cmake`, `ninja`
-- `ripgrep`, `shellcheck`
-- `node@20`
-- `neocmakelsp`
+```vim
+let g:git_default_remote_url_template = 'https://github.com/dmitriiVin/{repo}.git'
+let g:git_auto_create_github_repo = 1
+let g:git_auto_create_repo_visibility = 'public'
+```
 
-### 5.2 Linux (apt)
+Что это даёт:
 
-- `git`, `curl`, `rsync`, `unzip`
-- `cmake`, `ninja-build`
-- `ripgrep`, `shellcheck`
-- `nodejs`, `npm`
-- `python3`, `python3-pip`
+- шаблон `origin` для новых локальных репозиториев,
+- авто-создание GitHub репозитория через `gh repo create` при необходимости,
+- выбор видимости (`public` или `private`).
 
-### 5.3 CoC extensions
+---
 
-Устанавливаются скриптом:
+## 8. Автоматическое создание GitHub-репозитория
+
+Логика работает в Git-функциях (`vimconfigs/functions/github.vim`):
+
+1. Если в рабочей папке нет `.git`, при Git-действиях можно запустить init.
+2. После init автоматически добавляется `origin` из шаблона `g:git_default_remote_url_template`.
+3. Если remote недоступен и это `github.com`, выполняется попытка `gh repo create owner/repo`.
+4. Для этого нужны:
+   - установленный `gh`,
+   - авторизация `gh auth login`.
+
+Если `gh` не установлен или не авторизован, выводится понятное сообщение.
+
+---
+
+## 9. CoC и языки
+
+### 9.1 Устанавливаемые расширения CoC
 
 - `coc-clangd`
 - `coc-cmake`
@@ -216,235 +223,249 @@ cp coc-settings.json ~/.config/coc/coc-settings.json
 - `coc-sh`
 - `coc-tsserver`
 - `coc-yaml`
+
+Также ставятся npm-пакеты:
+
 - `pyright`
 - `vscode-langservers-extracted`
 
+### 9.2 Важное для Python
+
+- Python-диагностика работает через `coc-pyright`.
+- Убедись, что `node` и `npm` доступны в PATH.
+
+### 9.3 Важное для CMake
+
+- Конфиг использует `neocmakelsp` в `coc-settings.json`.
+- Скрипт пытается установить `neocmakelsp` через brew.
+
 ---
 
-## 6. Все основные горячие клавиши
+## 10. CMake workflow подробно
+
+### 10.1 Поиск CMakeLists
+
+Функции в `cmake.vim`:
+
+- находят корневой `CMakeLists.txt` в рабочем дереве,
+- игнорируют `.vim-code-profiles/` при поиске CMake,
+- запоминают последний CMake-контекст.
+
+### 10.2 Build-директории
+
+Используются каталоги вида:
+
+- `build/debug`
+- `build/release`
+
+и контекст последней сборки (`g:cmake_last_*`).
+
+### 10.3 `F10` и профили кода
+
+При переключении build type:
+
+1. Проверяются несохранённые буферы.
+2. Текущая версия синхронизируется в активный профиль.
+3. Целевой профиль копируется в рабочую директорию.
+4. Буферы перечитываются.
+
+Таким образом можно держать разные версии исходников для debug/release.
+
+---
+
+## 11. Quickfix и диагностика
+
+Ключевые команды:
+
+- `Ctrl+W` — открыть quickfix monitor
+- `Ctrl+Q` — закрыть quickfix
+- `\qn` / `\qp` — next/prev ошибка
+- `\qf` / `\ql` — first/last ошибка
+
+Quickfix используется как отдельная панель мониторинга ошибок.
+
+---
+
+## 12. Полный список основных хоткеев
 
 Лидер-клавиша: `\`
 
-## 6.1 Базовые
+### 12.1 Базовые
 
-- `Ctrl+S` — сохранить.
-- `Ctrl+B` — закрыть текущий буфер (`:bp|bd #`).
-- `Ctrl+X` / `\x` — альтернативное закрытие буфера.
-- `Ctrl+Z` — undo.
+- `Ctrl+S` — сохранить файл
+- `Ctrl+X` — закрыть текущий буфер (`:bp|bd #`)
+- `Ctrl+B` — закрыть текущий буфер (`:bp|bd #`)
+- `Ctrl+Z` — undo
 
-## 6.2 Навигация по буферам/окнам
+### 12.2 Буферы и окна
 
-- `Tab` / `Shift+Tab` — циклический переход по рабочим буферам.
-- `Tab+←/→/↑/↓` — переход между окнами.
-- `Shift+←/→/↑/↓` — быстрый переход между окнами.
-- `Ctrl+Tab` — `:b#`.
+- `Tab` / `Shift+Tab` — цикл по рабочим буферам
+- `Tab + ←/→/↑/↓` — переход между окнами
+- `Shift + ←/→/↑/↓` — быстрый переход между окнами
+- `Ctrl+Tab` — переключение на предыдущий буфер
 
-## 6.3 Поиск/редактирование
+### 12.3 Поиск/редактирование
 
-- `Ctrl+F` — поиск.
-- `Ctrl+H` — `:nohlsearch`.
-- `Ctrl+A` — выделить весь файл.
-- `Ctrl+D` / `Ctrl+K` — удалить строку или выделение.
-- `\c` — `vim-commentary`.
+- `Ctrl+F` — поиск
+- `Ctrl+H` — `:nohlsearch`
+- `Ctrl+A` — выделить всё
+- `Ctrl+D` / `Ctrl+K` — удалить строку/выделение
+- `\c` — комментарий через `vim-commentary`
 
-## 6.4 Файлы и буферы
+### 12.4 NERDTree
 
-- `Ctrl+N` — создать файл.
-- `Ctrl+O` — открыть файл от текущей директории.
-- `Ctrl+E` — открыть из директории текущего файла.
-- `Ctrl+P` — `:find *`.
-- `Alt+O` — `SafeEdit()`.
-- `\bl` — список буферов.
-- `\bd` — закрыть буфер.
-- `\bo` — закрыть все, кроме текущего.
-- `\cd` — перейти в директорию текущего файла.
-- `\pwd` — показать cwd.
-- `\md` — mkdir.
-- `\ex` — открыть текущую папку в Finder.
+- `F1` — открыть/закрыть NERDTree
+- `F4` — обновить NERDTree
+- `Ctrl+N` — создать файл/директорию в NERDTree
+- `Ctrl+D` — удалить файл/директорию в NERDTree
 
-## 6.5 NERDTree
+### 12.5 CMake
 
-- `F1` — toggle NERDTree.
-- `F4` — refresh tree.
-- `Ctrl+N` — создать файл/папку (в NERDTree).
-- `Ctrl+D` — удалить файл/папку (в NERDTree).
-- `i` — смена cwd на выбранную директорию.
+- `F3` — удалить `build` текущего проекта
+- `F6` — генерация CMake
+- `F7` — сборка
+- `F8` — интерактивный выбор исполняемого файла
+- `F9` — запуск выбранного исполняемого файла
+- `F10` — переключение `Debug/Release`
+- `F12` — создать/открыть `CMakeLists.txt` в NERDTree
+- `\ru` — быстрый цикл `generate+build+run`
+- `\bt` — показать текущий build type
+- `\ct` — показать выбранный target
 
-## 6.6 CMake и запуск
+### 12.6 Git/Fugitive
 
-- `F3` — удалить папку `build` текущего проекта.
-- `F6` — CMake generate.
-- `F7` — CMake build (с автогенерацией при отсутствии build).
-- `F8` — интерактивный выбор target.
-- `F9` — запуск выбранного target.
-- `F10` — переключить `Debug/Release`.
-- `F12` — создать/открыть `CMakeLists.txt` из NERDTree.
-- `\ru` — generate + build + auto-select target + run.
-- `\bt` — показать текущий build type.
-- `\ct` — показать путь текущего выбранного target.
+- `\gs` — `:Git`
+- `\gc` — `:Git commit`
+- `\gp` — `:Git push`
+- `\gl` — `:Git pull`
+- `\go` — `:GBrowse`
+- `\gb` — интерактивно переключить ветку
+- `\gn` — создать и переключить новую ветку
+- `\gv` — переключить Git worktree
+- `\gm` — настроить ветки для `Debug/Release`
+- `\gd` — перейти на Debug-ветку
+- `\gr` — перейти на Release-ветку
+- `\gD` — запомнить текущую ветку как Debug
+- `\gR` — запомнить текущую ветку как Release
 
-## 6.7 Quickfix и диагностика
+Дополнительные команды:
 
-- `Ctrl+W` — открыть quickfix монитор.
-- `Ctrl+Q` — закрыть quickfix.
-- `\qn` / `\qp` — next/prev ошибка.
-- `\qf` / `\ql` — first/last ошибка.
+- `:GitBranchSwitch` — интерактивное переключение ветки
+- `:GitBranchCreate` — создание новой ветки
 
-## 6.8 Git/Fugitive
+### 12.7 Темы/шрифты/справка
 
-- `\gs` — `:Git`.
-- `\gc` — `:Git commit`.
-- `\gp` — `:Git push`.
-- `\gl` — `:Git pull`.
-- `\go` — `:GBrowse`.
-
-## 6.9 Темы, шрифты, помощь
-
-- `\th` — выбор темы.
-- `\ff` — выбор GUI-шрифта.
-- `\h` — встроенная help-страница.
-- `Ctrl+Shift+R` — полный рестарт Vim.
+- `\th` — выбор темы (preset + scheme), применение сразу
+- `\ff` — выбор GUI-шрифта
+- `\h` — встроенная справка
+- `Esc` в справке — закрыть help и вернуться к коду
 
 ---
 
-## 7. Как работает F10 и локальные версии кода
+## 13. Темы
 
-Это отдельный механизм, который не требует удаленного репозитория.
+### 13.1 Источники тем
 
-1. При первом переключении создается служебный каталог:
-   - `.vim-code-profiles/debug`
-   - `.vim-code-profiles/release`
-2. При `F10`:
-   - текущие файлы проекта синхронизируются в активный профиль,
-   - целевой профиль копируется обратно в рабочую директорию,
-   - буферы перечитываются,
-   - при необходимости обновляются target/diagnostics.
-3. Служебный каталог `.vim-code-profiles` исключен из:
-   - поиска `CMakeLists.txt`,
-   - поиска исполняемых файлов,
-   - синхронизации build/temporary файлов.
+1. Локальные preset-файлы из `vimconfigs/colors/*.vim`.
+2. Все colorscheme из `runtimepath` (включая темы из плагинов, например github).
 
-Флаг включения механизма:
+### 13.2 Сортировка
 
-```vim
-let g:cmake_sync_code_profile_with_build_type = 1
+Список в `\th`:
+
+- сначала `[preset]`, затем `[scheme]`,
+- внутри каждой группы сортировка по алфавиту.
+
+### 13.3 Персистентность
+
+Последняя выбранная тема сохраняется в `vimconfigs/theme_state.vim` и подгружается при старте.
+
+---
+
+## 14. Шрифты в Vim
+
+- `\ff` работает только в GUI Vim (`has('gui_running')`).
+- В терминальном Vim шрифт меняется в настройках терминала, не внутри Vim.
+- В preset уже добавлен `Fixedsys Excelsior 3.01`.
+
+---
+
+## 15. Troubleshooting
+
+### 15.1 `Repository not found` при `git push`
+
+Причина: remote указывает на GitHub-репозиторий, который ещё не создан.
+
+Что делать:
+
+1. Убедиться, что установлен `gh`.
+2. Выполнить `gh auth login`.
+3. Повторить Git-действие из Vim (или пуш).
+
+### 15.2 `gh auth login` не запускается из скрипта
+
+Скрипт запускает `gh auth login` только в интерактивном терминале (TTY).
+Если установка шла неинтерактивно, выполни вручную:
+
+```bash
+gh auth login
 ```
 
-Если нужно отключить подмену кода и оставить только переключение build type:
+### 15.3 `CocRestart`/LSP не поднимается
 
-```vim
-let g:cmake_sync_code_profile_with_build_type = 0
+Проверить:
+
+```bash
+node -v
+npm -v
+vim --version
 ```
 
----
-
-## 8. Подсветка, темы и шрифты
-
-## 8.1 Темы
-
-`\th` показывает объединенный список:
-
-- `[preset]` — темы из `vimconfigs/colors/*.vim`,
-- `[scheme]` — темы из runtimepath.
-
-Выбранная тема сохраняется в `vimconfigs/theme_state.vim` и восстанавливается при старте.
-
-## 8.2 Шрифт
-
-`\ff` работает в GUI Vim (`guifont`).
-
-В терминальном Vim шрифт задается настройками самого терминала.
-
----
-
-## 9. Quickfix/LSP/диагностика
-
-- Quickfix открыт автоматически и работает как монитор.
-- Есть watcher для `compile_commands.json`.
-- При изменениях compile commands выполняется refresh/restart диагностики.
-- Диагностика CoC обновляется на `BufEnter`, `BufWritePost`, `InsertLeave`, `FocusGained`.
-
----
-
-## 10. Типовой рабочий сценарий (CMake)
-
-1. Открыть проект (`cwd` на корень проекта).
-2. Нажать `F6` для генерации.
-3. Нажать `F7` для сборки.
-4. Нажать `F8` выбрать target.
-5. Нажать `F9` запустить.
-6. Нажать `F10` переключить `Debug/Release` и при включенном режиме профилей получить другую локальную версию кода.
-
-Быстрый режим: `\ru`.
-
----
-
-## 11. Troubleshooting
-
-## 11.1 После изменения конфига не применилось
-
-Выполнить:
+В Vim:
 
 ```vim
-:source ~/.vim/vimconfigs/options.vim
-:source ~/.vim/vimconfigs/mappings.vim
-:source ~/.vim/vimconfigs/functions/cmake.vim
-:source ~/.vim/vimconfigs/functions/help.vim
+:CocInfo
+:CocCommand workspace.showOutput
 ```
 
-## 11.2 CoC/LSP работает нестабильно
+### 15.4 Нет Python-диагностики
 
-Проверки:
+Проверить, что установлен `coc-pyright` и `pyright`:
 
-1. `:CocInfo`
-2. `:messages`
-3. версия Node (`node -v`)
-4. наличие `~/.config/coc/coc-settings.json`
-
-## 11.3 F9 запускает не тот target
-
-1. `F8` выбрать target явно.
-2. Проверить текущий target через `\ct`.
-3. После `F10` target ретаргетится автоматически, но если бинарника нет, сделайте `F7`.
-
-## 11.4 Подсветка странная после переключений
-
-Выполнить:
-
-```vim
-:e!
-:syntax on
-:filetype detect
+```bash
+ls ~/.config/coc/extensions/node_modules | grep -E "coc-pyright|pyright"
 ```
 
 ---
 
-## 12. Обновление и деплой
-
-Обновить локальный репозиторий:
+## 16. Обновление конфигурации
 
 ```bash
 cd ~/Desktop/vimconfig
 git pull
-```
-
-Переустановить конфиг:
-
-```bash
 ./installvimconfig.sh
 ```
 
 ---
 
-## 13. Встроенная справка
+## 17. Где смотреть реализацию
 
-Главная команда:
+- `/Users/dmitriivinogradov/Desktop/vimconfig/.vimrc`
+- `/Users/dmitriivinogradov/Desktop/vimconfig/coc-settings.json`
+- `/Users/dmitriivinogradov/Desktop/vimconfig/installvimconfig.sh`
+- `/Users/dmitriivinogradov/Desktop/vimconfig/vimconfigs/mappings.vim`
+- `/Users/dmitriivinogradov/Desktop/vimconfig/vimconfigs/options.vim`
+- `/Users/dmitriivinogradov/Desktop/vimconfig/vimconfigs/functions/cmake.vim`
+- `/Users/dmitriivinogradov/Desktop/vimconfig/vimconfigs/functions/github.vim`
+- `/Users/dmitriivinogradov/Desktop/vimconfig/vimconfigs/functions/help.vim`
 
-- `\h`
+---
 
-Особенности:
+## 18. Итог
 
-- открывается в текущем рабочем окне,
-- выход по `Esc`,
-- содержит список ключей и список основных файлов конфигурации.
+Этот репозиторий рассчитан на сценарий "установить на чистую систему и сразу работать":
 
+- зависимости подтягиваются автоматически,
+- CoC/плагины ставятся автоматически,
+- темы и шрифты доступны сразу,
+- Git workflow с локальными ветками и автосозданием GitHub-репозитория интегрирован прямо в Vim.
