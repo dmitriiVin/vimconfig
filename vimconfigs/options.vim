@@ -50,6 +50,7 @@ set linebreak
 
 let g:cmake_build_type = 'Debug'
 let g:cmake_selected_target = ''
+let g:cmake_sync_code_profile_with_build_type = 1
 
 " === ПОДСВЕТКА СИНТАКСИСА C++ ===
 

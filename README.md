@@ -1,38 +1,72 @@
 # VimConfig
 
-Персональная модульная конфигурация Vim для C/C++ и CMake-проектов с:
+Подробная модульная конфигурация Vim для ежедневной разработки с упором на:
 
-- удобной навигацией по буферам и окнам,
-- постоянным quickfix-мониторингом ошибок,
-- CoC/LSP (clangd, python, ts/js, html/css/json/yaml, c#, rust, cmake и т.д.),
-- интерактивным выбором тем и GUI-шрифтов,
-- горячими клавишами для ежедневной работы.
+- C/C++ и CMake,
+- быстрый цикл `generate -> build -> run`,
+- постоянный мониторинг ошибок через quickfix,
+- удобную навигацию по буферам/окнам,
+- гибкую настройку тем и GUI-шрифтов,
+- стабильную установку на macOS и Linux.
 
-Конфиг ориентирован на macOS/Linux и устанавливается через `installvimconfig.sh`.
+Конфиг разворачивается из этого репозитория в `~/.vim` и `~/.vimrc`.
 
 ---
 
-## 1. Структура репозитория
+## 1. Что именно дает этот конфиг
+
+1. Единый `F`-workflow для CMake:
+   - `F6` генерация,
+   - `F7` сборка,
+   - `F8` выбор исполняемого файла,
+   - `F9` запуск,
+   - `F10` переключение `Debug/Release`.
+2. Локальные версии кода для `Debug/Release`:
+   - при `F10` код может автоматически подменяться между профилями,
+   - профили хранятся в `.vim-code-profiles/debug` и `.vim-code-profiles/release`.
+3. Автоматический quickfix-монитор:
+   - открывается автоматически,
+   - не перехватывает фокус,
+   - используется как панель мониторинга ошибок.
+4. CoC/LSP для популярных языков (через `coc.nvim` и расширения).
+5. Модульность:
+   - `mappings.vim` — только клавиши,
+   - `options.vim` — только опции,
+   - `autocmd.vim` — автокоманды,
+   - `functions/*.vim` — функции по подсистемам.
+
+---
+
+## 2. Полная структура репозитория
 
 ```text
 vimconfig/
 ├── .vimrc
-├── installvimconfig.sh
 ├── README.md
+├── coc-settings.json
+├── installvimconfig.sh
 └── vimconfigs/
     ├── autocmd.vim
     ├── mappings.vim
     ├── options.vim
     ├── plugins.vim
-    ├── theme_state.vim                 # автогенерируется после выбора темы
+    ├── theme_state.vim
     ├── colors/
+    │   ├── blue_dark.vim
+    │   ├── desert_dark.vim
+    │   ├── elflord_dark.vim
+    │   ├── evening_dark.vim
     │   ├── fallout.vim
     │   ├── github_dark.vim
     │   ├── github_light.vim
-    │   ├── gruvbox_dark_soft.vim
     │   ├── gruvbox_dark_hard.vim
+    │   ├── gruvbox_dark_soft.vim
     │   ├── gruvbox_light_soft.vim
-    │   └── ...другие пресеты
+    │   ├── industry_dark.vim
+    │   ├── murphy_dark.vim
+    │   ├── ron_dark.vim
+    │   ├── slate_dark.vim
+    │   └── zellner_light.vim
     └── functions/
         ├── cmake.vim
         ├── coc_russian.vim
@@ -45,9 +79,71 @@ vimconfig/
 
 ---
 
-## 2. Быстрая установка
+## 3. Назначение каждого ключевого файла
 
-### 2.1 Автоматическая
+### 3.1 Верхний уровень
+
+- `.vimrc`
+  - точка входа,
+  - задает `g:coc_node_path`,
+  - подключает все модули,
+  - задает `g:coc_global_extensions`.
+- `coc-settings.json`
+  - CoC diagnostics,
+  - pyright,
+  - neocmakelsp,
+  - root patterns.
+- `installvimconfig.sh`
+  - установка зависимостей,
+  - копирование конфигов,
+  - установка/обновление `vim-plug`, CoC extensions и плагинов.
+- `README.md`
+  - эта подробная документация.
+
+### 3.2 Каталог `vimconfigs/`
+
+- `options.vim`
+  - `number`, `indent`, `search`, `wildmenu`, `airline`,
+  - CMake глобальные переменные,
+  - theme/font subsystem.
+- `mappings.vim`
+  - все горячие клавиши.
+- `autocmd.vim`
+  - quickfix monitor,
+  - compile_commands watcher,
+  - live diagnostic refresh,
+  - NERDTree window-local rules.
+- `plugins.vim`
+  - список плагинов (`vim-plug`).
+- `theme_state.vim`
+  - автогенерируемое сохранение последней темы.
+
+### 3.3 Каталог `vimconfigs/functions/`
+
+- `cmake.vim`
+  - логика F6/F7/F8/F9/F10/F12,
+  - автогенерация build,
+  - выбор/запуск target,
+  - локальные профили кода `Debug/Release`.
+- `help.vim`
+  - встроенная справка `\h` в текущем окне,
+  - выход из help по `Esc`.
+- `nerdtree.vim`
+  - операции создания/переименования/удаления в дереве.
+- `runcode.vim`
+  - запуск файлов по filetype (F5).
+- `terminal.vim`
+  - утилиты терминального режима и path completion.
+- `github.vim`
+  - fugitive/rhubarb функции.
+- `coc_russian.vim`
+  - русифицированные helper-команды для CoC.
+
+---
+
+## 4. Установка
+
+## 4.1 Быстрая установка (рекомендуется)
 
 ```bash
 git clone https://github.com/dmitriiVin/vimconfig.git
@@ -56,22 +152,31 @@ chmod +x installvimconfig.sh
 ./installvimconfig.sh
 ```
 
-Скрипт:
+Скрипт выполняет:
 
-1. копирует `vimconfigs/*` в `~/.vim/vimconfigs`,
-2. копирует `.vimrc` в `~/.vimrc`,
-3. ставит `vim-plug`,
-4. запускает `:PlugInstall`.
+1. Проверку и установку базовых зависимостей.
+2. Backup текущего `~/.vimrc`.
+3. Копирование `.vimrc` и `vimconfigs/` в `~/.vim`.
+4. Копирование `coc-settings.json` в:
+   - `~/.vim/coc-settings.json`,
+   - `~/.config/coc/coc-settings.json`.
+5. Установку `vim-plug`.
+6. Установку CoC extensions через npm.
+7. Best-effort установку шрифтов.
+8. `PlugInstall`.
 
-### 2.2 Ручная
+## 4.2 Установка вручную
 
 ```bash
 mkdir -p ~/.vim/vimconfigs
 cp -R vimconfigs/* ~/.vim/vimconfigs/
 cp .vimrc ~/.vimrc
+cp coc-settings.json ~/.vim/coc-settings.json
+mkdir -p ~/.config/coc
+cp coc-settings.json ~/.config/coc/coc-settings.json
 ```
 
-Потом в Vim:
+Затем в Vim:
 
 ```vim
 :PlugInstall
@@ -80,185 +185,266 @@ cp .vimrc ~/.vimrc
 
 ---
 
-## 3. Главная справка внутри Vim
+## 5. Зависимости
 
-Добавлена горячая клавиша:
+### 5.1 macOS (через brew)
 
-- `\h` — открыть встроенную подробную справку по конфигурации.
+- `git`, `curl`, `rsync`, `unzip`
+- `cmake`, `ninja`
+- `ripgrep`, `shellcheck`
+- `node@20`
+- `neocmakelsp`
 
-Справка открывается в отдельном scratch-буфере и содержит список всех основных хоткеев и их назначение.
+### 5.2 Linux (apt)
+
+- `git`, `curl`, `rsync`, `unzip`
+- `cmake`, `ninja-build`
+- `ripgrep`, `shellcheck`
+- `nodejs`, `npm`
+- `python3`, `python3-pip`
+
+### 5.3 CoC extensions
+
+Устанавливаются скриптом:
+
+- `coc-clangd`
+- `coc-cmake`
+- `coc-css`
+- `coc-json`
+- `coc-pyright`
+- `coc-rust-analyzer`
+- `coc-sh`
+- `coc-tsserver`
+- `coc-yaml`
+- `pyright`
+- `vscode-langservers-extracted`
 
 ---
 
-## 4. Основные горячие клавиши
+## 6. Все основные горячие клавиши
 
 Лидер-клавиша: `\`
 
-## 4.1 Базовые операции
+## 6.1 Базовые
 
-- `Ctrl+S` — сохранить файл.
-- `Ctrl+B` — закрыть текущий буфер (`:bp | bd #`).
-- `Tab` / `Shift+Tab` — переключение рабочих буферов.
-- `Tab+стрелки` — переход между окнами (`NERDTree`/код/quickfix).
-- `Shift+стрелки` — быстрый переход между окнами.
+- `Ctrl+S` — сохранить.
+- `Ctrl+B` — закрыть текущий буфер (`:bp|bd #`).
+- `Ctrl+X` / `\x` — альтернативное закрытие буфера.
+- `Ctrl+Z` — undo.
 
-## 4.2 Работа с файлами/буферами
+## 6.2 Навигация по буферам/окнам
 
-- `F2` — переименовать файл/папку (контекстно).
-- `Ctrl+N` — создать файл (или в NERDTree создать файл/папку).
-- `Ctrl+D` — удалить строку (или файл/папку в NERDTree).
-- `\x` — закрыть текущий буфер.
-- `\bd` — закрыть текущий буфер.
-- `\bo` — закрыть все буферы кроме текущего.
-- `\bl` — показать список буферов.
-- `Ctrl+O`, `Ctrl+E`, `Ctrl+P`, `Alt+O` — варианты открытия файлов.
+- `Tab` / `Shift+Tab` — циклический переход по рабочим буферам.
+- `Tab+←/→/↑/↓` — переход между окнами.
+- `Shift+←/→/↑/↓` — быстрый переход между окнами.
+- `Ctrl+Tab` — `:b#`.
 
-## 4.3 Поиск/редактирование
+## 6.3 Поиск/редактирование
 
 - `Ctrl+F` — поиск.
-- `Ctrl+H` — убрать подсветку поиска.
-- `Ctrl+A` — выделить все.
-- `Ctrl+K` — удалить строку.
-- `\c` — комментировать/раскомментировать.
+- `Ctrl+H` — `:nohlsearch`.
+- `Ctrl+A` — выделить весь файл.
+- `Ctrl+D` / `Ctrl+K` — удалить строку или выделение.
+- `\c` — `vim-commentary`.
 
-## 4.4 Quickfix / диагностика
+## 6.4 Файлы и буферы
 
-- `Ctrl+W` — открыть quickfix-монитор.
+- `Ctrl+N` — создать файл.
+- `Ctrl+O` — открыть файл от текущей директории.
+- `Ctrl+E` — открыть из директории текущего файла.
+- `Ctrl+P` — `:find *`.
+- `Alt+O` — `SafeEdit()`.
+- `\bl` — список буферов.
+- `\bd` — закрыть буфер.
+- `\bo` — закрыть все, кроме текущего.
+- `\cd` — перейти в директорию текущего файла.
+- `\pwd` — показать cwd.
+- `\md` — mkdir.
+- `\ex` — открыть текущую папку в Finder.
+
+## 6.5 NERDTree
+
+- `F1` — toggle NERDTree.
+- `F4` — refresh tree.
+- `Ctrl+N` — создать файл/папку (в NERDTree).
+- `Ctrl+D` — удалить файл/папку (в NERDTree).
+- `i` — смена cwd на выбранную директорию.
+
+## 6.6 CMake и запуск
+
+- `F3` — удалить папку `build` текущего проекта.
+- `F6` — CMake generate.
+- `F7` — CMake build (с автогенерацией при отсутствии build).
+- `F8` — интерактивный выбор target.
+- `F9` — запуск выбранного target.
+- `F10` — переключить `Debug/Release`.
+- `F12` — создать/открыть `CMakeLists.txt` из NERDTree.
+- `\ru` — generate + build + auto-select target + run.
+- `\bt` — показать текущий build type.
+- `\ct` — показать путь текущего выбранного target.
+
+## 6.7 Quickfix и диагностика
+
+- `Ctrl+W` — открыть quickfix монитор.
 - `Ctrl+Q` — закрыть quickfix.
 - `\qn` / `\qp` — next/prev ошибка.
 - `\qf` / `\ql` — first/last ошибка.
 
-## 4.5 CMake
+## 6.8 Git/Fugitive
 
-- `F6` — генерация CMake.
-- `F7` — сборка проекта.
-- `F8` — выбор таргета.
-- `F9` — запуск выбранного таргета.
-- `F10` — Debug/Release.
-- `F12` — создать/открыть `CMakeLists.txt` в NERDTree.
-- `\ru` — generate + build + run.
-- `\bt` — показать текущий build type.
+- `\gs` — `:Git`.
+- `\gc` — `:Git commit`.
+- `\gp` — `:Git push`.
+- `\gl` — `:Git pull`.
+- `\go` — `:GBrowse`.
 
-## 4.6 Git/GitHub
+## 6.9 Темы, шрифты, помощь
 
-- `\gs` — `Git status`.
-- `\gc` — `Git commit`.
-- `\gp` — `Git push`.
-- `\gl` — `Git pull`.
-- `\go` — открыть на GitHub.
-
-## 4.7 Темы и шрифты
-
-- `\th` — интерактивный выбор темы.
-- `\ff` — интерактивный выбор GUI-шрифта.
+- `\th` — выбор темы.
+- `\ff` — выбор GUI-шрифта.
+- `\h` — встроенная help-страница.
+- `Ctrl+Shift+R` — полный рестарт Vim.
 
 ---
 
-## 5. Темы
+## 7. Как работает F10 и локальные версии кода
 
-### 5.1 Выбор темы
+Это отдельный механизм, который не требует удаленного репозитория.
 
-Команда `\th` открывает список:
+1. При первом переключении создается служебный каталог:
+   - `.vim-code-profiles/debug`
+   - `.vim-code-profiles/release`
+2. При `F10`:
+   - текущие файлы проекта синхронизируются в активный профиль,
+   - целевой профиль копируется обратно в рабочую директорию,
+   - буферы перечитываются,
+   - при необходимости обновляются target/diagnostics.
+3. Служебный каталог `.vim-code-profiles` исключен из:
+   - поиска `CMakeLists.txt`,
+   - поиска исполняемых файлов,
+   - синхронизации build/temporary файлов.
 
-1. `[preset]` — локальные пресеты из `vimconfigs/colors/*.vim`,
-2. `[scheme]` — все доступные темы из runtimepath.
+Флаг включения механизма:
 
-Сортировка:
+```vim
+let g:cmake_sync_code_profile_with_build_type = 1
+```
 
-- сначала `[preset]`, потом `[scheme]`,
-- внутри каждой группы — по алфавиту.
+Если нужно отключить подмену кода и оставить только переключение build type:
 
-### 5.2 Запоминание выбранной темы
-
-После выбора тема сохраняется в `vimconfigs/theme_state.vim` и автоматически восстанавливается при следующем запуске Vim.
-
----
-
-## 6. Шрифты
-
-`\ff` работает в GUI Vim (MacVim/gVim), где поддерживается `guifont`.
-
-Важно:
-
-- В терминальном Vim шрифт задаётся терминалом (iTerm2/kitty/Terminal.app), а не Vim.
-
----
-
-## 7. CMake и стабильность F6/F7
-
-В `functions/cmake.vim` реализован устойчивый поток:
-
-1. `F6` генерирует проект и запоминает последний CMake-контекст.
-2. `F7` использует текущий/последний контекст.
-3. Если папка сборки отсутствует, `F7` автоматически запускает генерацию и продолжает сборку.
-
-Это уменьшает ситуацию “Сначала запусти F6” при запуске сборки из разных окон/контекстов.
+```vim
+let g:cmake_sync_code_profile_with_build_type = 0
+```
 
 ---
 
-## 8. LSP/диагностика
+## 8. Подсветка, темы и шрифты
 
-Используется `coc.nvim` + набор расширений:
+## 8.1 Темы
 
-- `coc-clangd`
-- `coc-cmake`
-- `coc-json`
-- `coc-tsserver`
-- `coc-html`
-- `coc-css`
-- `coc-yaml`
-- `coc-pyright`
-- `coc-omnisharp`
-- `coc-rust-analyzer`
-- `coc-sh`
+`\th` показывает объединенный список:
 
-Дополнительно:
+- `[preset]` — темы из `vimconfigs/colors/*.vim`,
+- `[scheme]` — темы из runtimepath.
 
-- quickfix работает как постоянный монитор ошибок,
-- обновление `compile_commands.json` отслеживается автоматически.
+Выбранная тема сохраняется в `vimconfigs/theme_state.vim` и восстанавливается при старте.
+
+## 8.2 Шрифт
+
+`\ff` работает в GUI Vim (`guifont`).
+
+В терминальном Vim шрифт задается настройками самого терминала.
 
 ---
 
-## 9. NERDTree и окна
+## 9. Quickfix/LSP/диагностика
 
-- NERDTree стартует автоматически (при открытии без аргументов),
-- поддерживаются операции создания/удаления/переименования,
-- quickfix открывается в рабочей области, не ломая навигацию по дереву.
+- Quickfix открыт автоматически и работает как монитор.
+- Есть watcher для `compile_commands.json`.
+- При изменениях compile commands выполняется refresh/restart диагностики.
+- Диагностика CoC обновляется на `BufEnter`, `BufWritePost`, `InsertLeave`, `FocusGained`.
 
 ---
 
-## 10. Обновление конфигурации из репозитория
+## 10. Типовой рабочий сценарий (CMake)
 
-После `git pull` в репозитории:
+1. Открыть проект (`cwd` на корень проекта).
+2. Нажать `F6` для генерации.
+3. Нажать `F7` для сборки.
+4. Нажать `F8` выбрать target.
+5. Нажать `F9` запустить.
+6. Нажать `F10` переключить `Debug/Release` и при включенном режиме профилей получить другую локальную версию кода.
+
+Быстрый режим: `\ru`.
+
+---
+
+## 11. Troubleshooting
+
+## 11.1 После изменения конфига не применилось
+
+Выполнить:
+
+```vim
+:source ~/.vim/vimconfigs/options.vim
+:source ~/.vim/vimconfigs/mappings.vim
+:source ~/.vim/vimconfigs/functions/cmake.vim
+:source ~/.vim/vimconfigs/functions/help.vim
+```
+
+## 11.2 CoC/LSP работает нестабильно
+
+Проверки:
+
+1. `:CocInfo`
+2. `:messages`
+3. версия Node (`node -v`)
+4. наличие `~/.config/coc/coc-settings.json`
+
+## 11.3 F9 запускает не тот target
+
+1. `F8` выбрать target явно.
+2. Проверить текущий target через `\ct`.
+3. После `F10` target ретаргетится автоматически, но если бинарника нет, сделайте `F7`.
+
+## 11.4 Подсветка странная после переключений
+
+Выполнить:
+
+```vim
+:e!
+:syntax on
+:filetype detect
+```
+
+---
+
+## 12. Обновление и деплой
+
+Обновить локальный репозиторий:
 
 ```bash
-cd vimconfig
+cd ~/Desktop/vimconfig
+git pull
+```
+
+Переустановить конфиг:
+
+```bash
 ./installvimconfig.sh
 ```
 
-Или ручной вариант:
-
-```bash
-cp -R vimconfigs/* ~/.vim/vimconfigs/
-cp .vimrc ~/.vimrc
-```
-
 ---
 
-## 11. Диагностика проблем
+## 13. Встроенная справка
 
-Если что-то не работает:
+Главная команда:
 
-1. `:messages` — последние ошибки Vim.
-2. `:scriptnames` — проверить загрузку нужных файлов.
-3. `:CocInfo` — состояние CoC/LSP.
-4. `:PlugStatus` — статус плагинов.
-5. `\h` — встроенная справка по хоткеям этого конфига.
+- `\h`
 
----
+Особенности:
 
-## 12. Примечания
-
-- Конфигурация рассчитана на ежедневную работу с C/C++/CMake.
-- Поддержка части функций зависит от внешних инструментов (`cmake`, `ninja`, `clangd`, `node`, `python`, и т.д.).
+- открывается в текущем рабочем окне,
+- выход по `Esc`,
+- содержит список ключей и список основных файлов конфигурации.
 

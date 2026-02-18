@@ -110,7 +110,7 @@ nnoremap <F8> :call CMakeSelectTargetInteractive()<CR>
 nnoremap <F9> :call CMakeRunFixed()<CR>
 
 " F10 - переключение с debug на Release и наоборот
-nnoremap <F10> :call CMakeToggleBuildType()<CR>
+nnoremap <silent> <F10> :call CMakeToggleBuildType()<CR>
 
 " F12 - Создание/открытие CMakeLists.txt в папке NERDTree без закрытия NERDTree
 nnoremap <F12> :call CreateCMakeListsInNERDTree()<CR>
@@ -236,7 +236,7 @@ inoremap <expr> <S-Tab> pumvisible() ? "\<C-p>" : "\<S-Tab>"
 " Enter для подтверждения автодополнения
 inoremap <expr> <cr> pumvisible() ? "\<C-y>" : "\<cr>"
 
-" === GIT & GITHUB (ОДИН БУФЕР) ===
+" === ЛОКАЛЬНЫЕ ВЕРСИИ КОДА (GIT) ===
 
 " \ + G + S - Git status в единственном буфере
 nnoremap <leader>gs :Git<CR>
@@ -261,6 +261,21 @@ nnoremap <leader>gn :call GitCreateBranchInteractive()<CR>
 
 " \ + G + V - Переключить Git worktree (другая версия кода)
 nnoremap <leader>gv :call GitSwitchWorktreeInteractive()<CR>
+
+" \ + G + M - Настроить локальные ветки для Debug/Release
+nnoremap <leader>gm :call GitConfigureBuildBranchesInteractive()<CR>
+
+" \ + G + D - Быстро переключить локальную Debug-ветку
+nnoremap <leader>gd :call GitSwitchBranchForBuildType('Debug')<CR>
+
+" \ + G + R - Быстро переключить локальную Release-ветку
+nnoremap <leader>gr :call GitSwitchBranchForBuildType('Release')<CR>
+
+" \ + G + Shift + D - Запомнить текущую ветку как Debug
+nnoremap <leader>gD :call GitBindCurrentBranchToBuildType('Debug')<CR>
+
+" \ + G + Shift + R - Запомнить текущую ветку как Release
+nnoremap <leader>gR :call GitBindCurrentBranchToBuildType('Release')<CR>
 
 " ====== QUICKFIX =======
 

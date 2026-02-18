@@ -49,9 +49,15 @@ function! s:CocRunCommandIfExists(command_name) abort
 endfunction
 
 " === Выбор CMakeLists.txt в текущем workspace ===
+function! s:IsIgnoredCMakePath(path) abort
+    let l:path = fnamemodify(a:path, ':p')
+    return l:path =~# '/\.vim-code-profiles/'
+endfunction
+
 function! s:SelectCMakeFileInWorkspace(workspace_root, prompt_title, ...) abort
     let l:force_prompt = get(a:000, 0, 0)
     let l:cmake_files = systemlist('find ' . fnameescape(a:workspace_root) . ' -type f -name "CMakeLists.txt" 2>/dev/null')
+    call filter(l:cmake_files, '!s:IsIgnoredCMakePath(v:val)')
     if empty(l:cmake_files)
         return ''
     endif
@@ -115,6 +121,229 @@ function! s:ResolveBuildDir(cmake_dir) abort
     endfor
 
     return l:candidates[0]
+endfunction
+
+" === Локальные профили кода (без Git/GitHub): Debug/Release ===
+function! s:GetCodeProfileName(build_type) abort
+    return tolower(a:build_type) ==# 'release' ? 'release' : 'debug'
+endfunction
+
+function! s:GetCodeProfilesRoot(cmake_dir) abort
+    return a:cmake_dir . '/.vim-code-profiles'
+endfunction
+
+function! s:GetCodeProfileDir(cmake_dir, profile_name) abort
+    return s:GetCodeProfilesRoot(a:cmake_dir) . '/' . a:profile_name
+endfunction
+
+function! s:GetCodeProfileStateFile(cmake_dir) abort
+    return s:GetCodeProfilesRoot(a:cmake_dir) . '/active_profile'
+endfunction
+
+function! s:GetCodeProfileExcludes() abort
+    return [
+                \ '--exclude=.vim-code-profiles/',
+                \ '--exclude=build/',
+                \ '--exclude=.git/',
+                \ '--exclude=.DS_Store',
+                \ '--exclude=\*.swp',
+                \ '--exclude=\*.swo'
+                \ ]
+endfunction
+
+function! s:IsDirEmpty(path) abort
+    return !isdirectory(a:path) || empty(readdir(a:path))
+endfunction
+
+function! s:SyncTree(src_dir, dst_dir) abort
+    call mkdir(a:dst_dir, 'p')
+    let l:cmd = 'rsync -a --delete ' . join(s:GetCodeProfileExcludes(), ' ')
+                \ . ' ' . fnameescape(a:src_dir . '/')
+                \ . ' ' . fnameescape(a:dst_dir . '/')
+                \ . ' 2>&1'
+    let l:result = system(l:cmd)
+    return [v:shell_error, l:result]
+endfunction
+
+function! s:ReadActiveCodeProfile(cmake_dir) abort
+    let l:state_file = s:GetCodeProfileStateFile(a:cmake_dir)
+    if filereadable(l:state_file)
+        let l:lines = readfile(l:state_file)
+        if !empty(l:lines)
+            let l:name = trim(l:lines[0])
+            if l:name ==# 'debug' || l:name ==# 'release'
+                return l:name
+            endif
+        endif
+    endif
+    return ''
+endfunction
+
+function! s:WriteActiveCodeProfile(cmake_dir, profile_name) abort
+    call mkdir(s:GetCodeProfilesRoot(a:cmake_dir), 'p')
+    call writefile([a:profile_name], s:GetCodeProfileStateFile(a:cmake_dir))
+endfunction
+
+function! s:EnsureCodeProfiles(cmake_dir) abort
+    let l:profiles_root = s:GetCodeProfilesRoot(a:cmake_dir)
+    let l:debug_dir = s:GetCodeProfileDir(a:cmake_dir, 'debug')
+    let l:release_dir = s:GetCodeProfileDir(a:cmake_dir, 'release')
+    call mkdir(l:debug_dir, 'p')
+    call mkdir(l:release_dir, 'p')
+
+    if s:IsDirEmpty(l:debug_dir)
+        let [l:code, l:msg] = s:SyncTree(a:cmake_dir, l:debug_dir)
+        if l:code != 0
+            call s:echo_error("❌ Не удалось инициализировать debug-профиль")
+            echom l:msg
+            return 0
+        endif
+    endif
+
+    if s:IsDirEmpty(l:release_dir)
+        let [l:code, l:msg] = s:SyncTree(a:cmake_dir, l:release_dir)
+        if l:code != 0
+            call s:echo_error("❌ Не удалось инициализировать release-профиль")
+            echom l:msg
+            return 0
+        endif
+    endif
+
+    if empty(s:ReadActiveCodeProfile(a:cmake_dir))
+        call s:WriteActiveCodeProfile(a:cmake_dir, s:GetCodeProfileName(g:cmake_build_type))
+    endif
+
+    return 1
+endfunction
+
+function! s:HasModifiedWorkBuffers() abort
+    for l:buf in getbufinfo({'bufloaded': 1})
+        if getbufvar(l:buf.bufnr, '&buftype') ==# '' && getbufvar(l:buf.bufnr, '&modified')
+            return 1
+        endif
+    endfor
+    return 0
+endfunction
+
+function! s:SwitchCodeProfile(cmake_dir, old_build_type, new_build_type) abort
+    if !s:EnsureCodeProfiles(a:cmake_dir)
+        return 0
+    endif
+
+    let l:from_profile = s:GetCodeProfileName(a:old_build_type)
+    let l:to_profile = s:GetCodeProfileName(a:new_build_type)
+    if l:from_profile ==# l:to_profile
+        return 1
+    endif
+
+    let l:active_profile = s:ReadActiveCodeProfile(a:cmake_dir)
+    if empty(l:active_profile)
+        let l:active_profile = l:from_profile
+    endif
+
+    let l:from_dir = s:GetCodeProfileDir(a:cmake_dir, l:active_profile)
+    let l:to_dir = s:GetCodeProfileDir(a:cmake_dir, l:to_profile)
+
+    if s:HasModifiedWorkBuffers()
+        let l:save_now = confirm("Есть несохраненные изменения.\nСохранить перед переключением версии кода?", "&Да\n&Нет", 1)
+        if l:save_now != 1
+            call s:echo_warn("🚫 Переключение версии кода отменено")
+            return 0
+        endif
+        silent! wall
+        if s:HasModifiedWorkBuffers()
+            call s:echo_warn("⚠️  Не все буферы удалось сохранить")
+            return 0
+        endif
+    endif
+
+    let [l:save_code, l:save_msg] = s:SyncTree(a:cmake_dir, l:from_dir)
+    if l:save_code != 0
+        call s:echo_error("❌ Не удалось сохранить текущую версию кода (" . l:active_profile . ")")
+        echom l:save_msg
+        return 0
+    endif
+
+    let [l:load_code, l:load_msg] = s:SyncTree(l:to_dir, a:cmake_dir)
+    if l:load_code != 0
+        call s:echo_error("❌ Не удалось загрузить версию кода (" . l:to_profile . ")")
+        echom l:load_msg
+        return 0
+    endif
+
+    call s:WriteActiveCodeProfile(a:cmake_dir, l:to_profile)
+    call s:ReloadProjectBuffers(a:cmake_dir)
+
+    if exists(':NERDTreeRefreshRoot')
+        silent! NERDTreeRefreshRoot
+    endif
+    if exists(':CocRestart')
+        silent! CocRestart
+    endif
+
+    call s:echo_success("✅ Активирована версия кода: " . l:to_profile)
+    return 1
+endfunction
+
+" === Принудительно перечитать буферы проекта после подмены версии кода ===
+function! s:ReloadProjectBuffers(project_root) abort
+    let l:root = fnamemodify(a:project_root, ':p')
+    let l:origin_win = win_getid()
+    let l:origin_buf = bufnr('%')
+
+    for l:buf in getbufinfo({'bufloaded': 1})
+        if l:buf.bufnr <= 0
+            continue
+        endif
+
+        if getbufvar(l:buf.bufnr, '&buftype') !=# ''
+            continue
+        endif
+        if getbufvar(l:buf.bufnr, '&modified')
+            continue
+        endif
+
+        let l:path = fnamemodify(bufname(l:buf.bufnr), ':p')
+        if empty(l:path) || stridx(l:path, l:root) != 0
+            continue
+        endif
+
+        execute 'silent! keepalt buffer ' . l:buf.bufnr
+        silent! edit!
+    endfor
+
+    if bufexists(l:origin_buf)
+        execute 'silent! keepalt buffer ' . l:origin_buf
+    endif
+    if l:origin_win > 0
+        silent! call win_gotoid(l:origin_win)
+    endif
+endfunction
+
+" === Привязать выбранный исполняемый файл к новому build type ===
+function! s:RetargetSelectedExecutable(cmake_dir) abort
+    let l:build_dir = s:ResolveBuildDir(a:cmake_dir)
+    let l:executables = s:GetExecutableCandidates(l:build_dir)
+
+    if empty(l:executables)
+        let g:cmake_selected_target = ''
+        return
+    endif
+
+    if empty(g:cmake_selected_target)
+        let g:cmake_selected_target = l:executables[0]
+        return
+    endif
+
+    let l:old_name = fnamemodify(g:cmake_selected_target, ':t')
+    for l:exe in l:executables
+        if fnamemodify(l:exe, ':t') ==# l:old_name
+            let g:cmake_selected_target = l:exe
+            return
+        endif
+    endfor
+
+    let g:cmake_selected_target = l:executables[0]
 endfunction
 
 " === Найти toolchain-файл vcpkg автоматически ===
@@ -220,7 +449,7 @@ function! s:FindCMakeLists(start_dir) abort
     let l:dir = fnamemodify(empty(a:start_dir) ? getcwd() : a:start_dir, ':p')
     while 1
         let l:file = l:dir . '/CMakeLists.txt'
-        if filereadable(l:file)
+        if filereadable(l:file) && !s:IsIgnoredCMakePath(l:file)
             return l:file
         endif
 
@@ -331,7 +560,7 @@ function! CMakeDeleteBuildDir() abort
         return
     endif
 
-    if confirm("Удалить папку сборки?\n" . l:build_root, "&Да\n&Нет", 2) != 1
+    if confirm("Удалить папку сборки?\n" . l:build_root, "&Yes\n&No", 2) != 1
         call s:echo_info("ℹ️  Удаление build отменено")
         return
     endif
@@ -378,7 +607,8 @@ endfunction
 function! s:GetExecutableCandidates(build_dir) abort
     let l:executables = systemlist(
                 \ 'find ' . fnameescape(a:build_dir) . ' -type f -perm -111 ' .
-                \ '-not -name "*.a" -not -name "*.so" -not -name "*.dylib" -not -path "*/CMakeFiles/*" 2>/dev/null'
+                \ '-not -name "*.a" -not -name "*.so" -not -name "*.dylib" ' .
+                \ '-not -path "*/CMakeFiles/*" -not -path "*/.vim-code-profiles/*" 2>/dev/null'
                 \ )
     call sort(l:executables)
     return l:executables
@@ -439,9 +669,9 @@ function! CMakeRunFixed() abort
             return
         endif
 
-        let auto_exe = systemlist('find ' . fnameescape(build_dir) . ' -type f -executable ! -type d 2>/dev/null | grep -v CMakeFiles | head -1')
-        if !empty(auto_exe)
-            let g:cmake_selected_target = auto_exe[0]
+        let l:executables = s:GetExecutableCandidates(build_dir)
+        if !empty(l:executables)
+            let g:cmake_selected_target = l:executables[0]
             call s:echo_info("✅ Автоматически выбран: " . g:cmake_selected_target)
         else
             call s:echo_warn("⚠️  Исполняемый файл не найден (сначала F8 или сборка)")
@@ -463,12 +693,27 @@ endfunction
 
 " === Переключатель режима сборки (F10) ===
 function! CMakeToggleBuildType() abort
+    let l:old_build_type = g:cmake_build_type
+    let l:cmake_file = s:FindPreferredCMakeForBuild()
+    let l:cmake_dir = empty(l:cmake_file) ? getcwd() : fnamemodify(l:cmake_file, ':h')
     if g:cmake_build_type ==# 'Debug'
         let g:cmake_build_type = 'Release'
     else
         let g:cmake_build_type = 'Debug'
     endif
     call s:echo_info("🔁 Режим сборки: " . g:cmake_build_type)
+
+    " Переключаем локальную версию кода (debug/release) в пределах проекта.
+    if get(g:, 'cmake_sync_code_profile_with_build_type', 1)
+        if !s:SwitchCodeProfile(l:cmake_dir, l:old_build_type, g:cmake_build_type)
+            " Если переключение кода сорвалось, откатываем build type.
+            let g:cmake_build_type = l:old_build_type
+            call s:echo_warn("↩️  Режим сборки возвращен: " . g:cmake_build_type)
+            return
+        endif
+    endif
+
+    call s:RetargetSelectedExecutable(l:cmake_dir)
 endfunction
 
 " === Создание/открытие CMakeLists.txt в NERDTree (F12) ===
