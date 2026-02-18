@@ -89,6 +89,9 @@ vnoremap <C-k> d
 " F2 - переименовать текущий файл
 nnoremap <F2> :call RenameFile()<CR>
 
+" F3 - удалить папку build для текущего CMake-проекта
+nnoremap <F3> :call CMakeDeleteBuildDir()<CR>
+
 " F5 - запуск кода (зависит от типа файла)
 nnoremap <F5> :call RunCode()<CR>
 
@@ -131,9 +134,6 @@ nnoremap <leader>h :call ShowVimCommandsHelp()<CR>
 
 " F1 - открыть/закрыть NERDTree
 nnoremap <F1> :NERDTreeToggle<CR>
-
-" F3 - показать текущий файл в NERDTree
-nnoremap <F3> :NERDTreeFind<CR>
 
 " F4 - обновить NERDTree (чтобы видеть новые файлы)
 nnoremap <F4> :NERDTreeRefreshRoot<CR>

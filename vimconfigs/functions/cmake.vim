@@ -217,15 +217,35 @@ endfunction
 
 " === Найти ближайший CMakeLists.txt вверх по дереву ===
 function! s:FindCMakeLists(start_dir) abort
-    let l:dir = a:start_dir
-    while l:dir !=# "/"
-        let l:file = l:dir . "/CMakeLists.txt"
+    let l:dir = fnamemodify(empty(a:start_dir) ? getcwd() : a:start_dir, ':p')
+    while 1
+        let l:file = l:dir . '/CMakeLists.txt'
         if filereadable(l:file)
             return l:file
         endif
-        let l:dir = fnamemodify(l:dir, ':h')
+
+        let l:parent = fnamemodify(l:dir, ':h')
+        if l:parent ==# l:dir
+            break
+        endif
+        let l:dir = l:parent
     endwhile
-    return ""
+    return ''
+endfunction
+
+" === Предпочтительный CMakeLists для F7: корень cwd, иначе текущий буфер и выше ===
+function! s:FindPreferredCMakeForBuild() abort
+    let l:cmake_file = s:FindCMakeLists(getcwd())
+    if !empty(l:cmake_file)
+        return l:cmake_file
+    endif
+
+    let l:buffer_dir = expand('%:p:h')
+    if !empty(l:buffer_dir)
+        return s:FindCMakeLists(l:buffer_dir)
+    endif
+
+    return ''
 endfunction
 
 " === Генерация CMake (F6) ===
@@ -259,23 +279,19 @@ endfunction
 
 " === Сборка (F7) ===
 function! CMakeBuildFixed() abort
-    " Для nerdtree/quickfix собираем от cwd, иначе от текущего файла.
-    let cur_dir = (&filetype ==# 'nerdtree' || &buftype ==# 'quickfix') ? getcwd() : expand('%:p:h')
-    let cmake_file = s:FindCMakeLists(cur_dir)
+    let cmake_file = s:FindPreferredCMakeForBuild()
     if empty(cmake_file)
-        let cmake_file = s:SelectCMakeFileInWorkspace(getcwd(), 'Выберите CMakeLists.txt для сборки:')
-    endif
-    if empty(cmake_file)
-        call s:echo_warn("⚠️  CMakeLists.txt не найден")
+        call s:echo_warn("⚠️  CMakeLists.txt не найден (поиск: cwd и родительские директории)")
         return
     endif
 
+    let workspace_root = fnamemodify(cmake_file, ':h')
     let cmake_dir = fnamemodify(cmake_file, ':h')
     let build_dir = s:ResolveBuildDir(cmake_dir)
 
     if !isdirectory(build_dir)
         call s:echo_warn("⚠️  Папка сборки не найдена, запускаю автогенерацию...")
-        let build_dir = s:GenerateForDirectory(getcwd(), cmake_dir)
+        let build_dir = s:GenerateForDirectory(workspace_root, cmake_dir)
 
         if !isdirectory(build_dir)
             call s:echo_error("❌ Не удалось подготовить папку сборки")
@@ -283,7 +299,7 @@ function! CMakeBuildFixed() abort
         endif
     endif
 
-    let g:cmake_last_workspace_root = getcwd()
+    let g:cmake_last_workspace_root = workspace_root
     let g:cmake_last_cmake_dir = cmake_dir
     let g:cmake_last_build_dir = build_dir
 
@@ -299,12 +315,70 @@ function! CMakeBuildFixed() abort
     endif
 endfunction
 
+" === Удаление папки сборки (F3) ===
+function! CMakeDeleteBuildDir() abort
+    let l:cmake_file = s:FindPreferredCMakeForBuild()
+    if empty(l:cmake_file)
+        call s:echo_warn("⚠️  CMakeLists.txt не найден (поиск: cwd и родительские директории)")
+        return
+    endif
+
+    let l:cmake_dir = fnamemodify(l:cmake_file, ':h')
+    let l:build_root = l:cmake_dir . '/build'
+
+    if !isdirectory(l:build_root)
+        call s:echo_warn("⚠️  Папка build не найдена: " . l:build_root)
+        return
+    endif
+
+    if confirm("Удалить папку сборки?\n" . l:build_root, "&Да\n&Нет", 2) != 1
+        call s:echo_info("ℹ️  Удаление build отменено")
+        return
+    endif
+
+    if delete(l:build_root, 'rf') != 0
+        call s:echo_error("❌ Не удалось удалить папку build: " . l:build_root)
+        return
+    endif
+
+    let l:cc_candidates = [
+                \ fnamemodify(getcwd(), ':p') . 'compile_commands.json',
+                \ l:cmake_dir . '/compile_commands.json'
+                \ ]
+    let l:build_root_abs = fnamemodify(l:build_root, ':p')
+
+    for l:cc_path in uniq(l:cc_candidates)
+        if getftype(l:cc_path) !=# 'link'
+            continue
+        endif
+
+        let l:cc_target = fnamemodify(resolve(l:cc_path), ':p')
+        if stridx(l:cc_target, l:build_root_abs . '/') == 0
+            call delete(l:cc_path)
+        endif
+    endfor
+
+    if get(g:, 'cmake_last_cmake_dir', '') ==# l:cmake_dir
+        let g:cmake_last_build_dir = ''
+    endif
+    let g:cmake_selected_target = ''
+
+    if exists(':CocRestart')
+        silent! CocRestart
+    elseif exists('*CocAction')
+        call s:CocRunCommandIfExists('workspace.reloadProjects')
+        call s:CocRunCommandIfExists('clangd.restart')
+    endif
+    call setqflist([], 'r')
+
+    call s:echo_success("🧹 Папка build удалена: " . l:build_root)
+endfunction
+
 " === Выбор исполняемого файла (F8) ===
 function! CMakeSelectTargetInteractive() abort
-    let cur_dir = expand('%:p:h')
-    let cmake_file = s:FindCMakeLists(cur_dir)
+    let cmake_file = s:FindPreferredCMakeForBuild()
     if empty(cmake_file)
-        call s:echo_warn("⚠️  CMakeLists.txt не найден")
+        call s:echo_warn("⚠️  CMakeLists.txt не найден (поиск: cwd и родительские директории)")
         return
     endif
 
@@ -345,10 +419,9 @@ endfunction
 " === Запуск выбранного таргета (F9) ===
 function! CMakeRunFixed() abort
     if empty(g:cmake_selected_target)
-        let cur_dir = expand('%:p:h')
-        let cmake_file = s:FindCMakeLists(cur_dir)
+        let cmake_file = s:FindPreferredCMakeForBuild()
         if empty(cmake_file)
-            call s:echo_warn("⚠️  CMakeLists.txt не найден")
+            call s:echo_warn("⚠️  CMakeLists.txt не найден (поиск: cwd и родительские директории)")
             return
         endif
 
@@ -437,17 +510,17 @@ endfunction
 
 " === Быстрый запуск (\ + R + U) ===
 function! CMakeQuickRun() abort
-    let cur_dir = expand('%:p:h')
-    let cmake_file = s:FindCMakeLists(cur_dir)
+    let cmake_file = s:FindPreferredCMakeForBuild()
     if empty(cmake_file)
-        call s:echo_warn("⚠️  CMakeLists.txt не найден")
+        call s:echo_warn("⚠️  CMakeLists.txt не найден (поиск: cwd и родительские директории)")
         return
     endif
 
+    let workspace_root = fnamemodify(cmake_file, ':h')
     let cmake_dir = fnamemodify(cmake_file, ':h')
     let build_dir = s:ResolveBuildDir(cmake_dir)
     if !isdirectory(build_dir)
-        let build_dir = s:GenerateForDirectory(getcwd(), cmake_dir)
+        let build_dir = s:GenerateForDirectory(workspace_root, cmake_dir)
         if !isdirectory(build_dir)
             call s:echo_error("❌ Не удалось определить build-папку после генерации")
             return
