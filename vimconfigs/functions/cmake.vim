@@ -144,6 +144,16 @@ function! s:GetCodeProfileExcludes() abort
     return [
                 \ '--exclude=.vim-code-profiles/',
                 \ '--exclude=build/',
+                \ '--exclude=Build/',
+                \ '--exclude=Debug/',
+                \ '--exclude=Release/',
+                \ '--exclude=debug/',
+                \ '--exclude=release/',
+                \ '--exclude=CMakeFiles/',
+                \ '--exclude=CMakeCache.txt',
+                \ '--exclude=compile_commands.json',
+                \ '--exclude=cmake_install.cmake',
+                \ '--exclude=Makefile',
                 \ '--exclude=.git/',
                 \ '--exclude=.DS_Store',
                 \ '--exclude=\*.swp',
@@ -157,7 +167,8 @@ endfunction
 
 function! s:SyncTree(src_dir, dst_dir) abort
     call mkdir(a:dst_dir, 'p')
-    let l:cmd = 'rsync -a --delete ' . join(s:GetCodeProfileExcludes(), ' ')
+    " --no-owner/--no-group нужны для Linux без прав на chown/chgrp.
+    let l:cmd = 'rsync -a --delete --no-owner --no-group --no-perms ' . join(s:GetCodeProfileExcludes(), ' ')
                 \ . ' ' . shellescape(a:src_dir . '/')
                 \ . ' ' . shellescape(a:dst_dir . '/')
                 \ . ' </dev/null 2>&1'
