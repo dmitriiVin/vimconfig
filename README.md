@@ -89,9 +89,10 @@ vimconfig/
    - `coc-settings.json` -> `~/.vim/coc-settings.json` и `~/.config/coc/coc-settings.json`
 6. Ставит/обновляет `vim-plug`.
 7. Ставит CoC-расширения через npm.
-8. Ставит набор Nerd Fonts (расширенный список).
-9. Проверяет `gh auth status` и запускает `gh auth login` (если нужен интерактивный вход).
-10. Запускает `:PlugInstall`.
+8. Ставит/обновляет глобальный `~/.clang-format` из шаблона репозитория.
+9. Ставит набор Nerd Fonts (расширенный список).
+10. Проверяет `gh auth status` и запускает `gh auth login` (если нужен интерактивный вход).
+11. Запускает `:PlugInstall`.
 
 ---
 
@@ -115,12 +116,20 @@ vimconfig/
 - `gh`
 - `vim`
 - `llvm` (включает `clangd`)
+- `clang-format` (через `llvm` в Homebrew)
 - `neocmakelsp`
 
 ### 4.2 Linux fallback (если brew не удалось)
 
 - `apt` / `dnf` / `pacman` best-effort установка аналогичных пакетов.
 - Для Linux дополнительно ставится `fontconfig` (для `fc-cache`).
+- Для Linux отдельно добавлена установка `clang-format`.
+
+### 4.3 Глобальный clang-format
+
+- В репозитории есть файл `/Users/dmitriivinogradov/Desktop/vimconfig/.clang-format`.
+- Скрипт копирует его в `~/.clang-format` (с backup старой версии).
+- Это используется как глобальный стиль, если в проекте нет локального `.clang-format`.
 
 ---
 

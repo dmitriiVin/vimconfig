@@ -1,11 +1,28 @@
 " Автоматически обновлять NERDTree при сохранении файлов
 autocmd BufWritePost * if exists(':NERDTreeRefreshRoot') | NERDTreeRefreshRoot | endif
 
-" Использовать системный clang-format
-autocmd FileType c,cpp,h,hpp setlocal formatprg=clang-format
+" clang-format: всегда искать ближайший .clang-format от текущего файла.
+function! s:ClangFormatCurrentBuffer() abort
+    if !executable('clang-format') || !&modifiable || &readonly
+        return
+    endif
 
-" Автоформат перед сохранением
-autocmd BufWritePre *.c,*.cpp,*.h,*.hpp silent! undojoin | silent! execute '%!clang-format'
+    let l:global_cfg = expand('~/.clang-format')
+    if empty(l:global_cfg) || !filereadable(l:global_cfg)
+        return
+    endif
+
+    let l:view = winsaveview()
+    let l:cmd = 'clang-format --style=file --fallback-style=Microsoft --assume-filename=' . shellescape(l:global_cfg)
+    silent! undojoin | silent! execute '%!' . l:cmd
+    call winrestview(l:view)
+endfunction
+
+augroup VimConfigClangFormat
+    autocmd!
+    autocmd FileType c,cpp,cc,cxx,h,hpp,hh,hxx setlocal formatprg=clang-format\ --style=file\ --fallback-style=Microsoft\ --assume-filename=~/.clang-format
+    autocmd BufWritePre *.c,*.cc,*.cpp,*.cxx,*.h,*.hh,*.hpp,*.hxx call s:ClangFormatCurrentBuffer()
+augroup END
 
 " Отключить все клавиши создания/открытия файлов в NERDTree
 autocmd FileType nerdtree nnoremap <buffer> <C-o> <nop>

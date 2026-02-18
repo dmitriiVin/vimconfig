@@ -10,6 +10,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SRC_VIMRC="$SCRIPT_DIR/.vimrc"
 SRC_VIMCONFIGS_DIR="$SCRIPT_DIR/vimconfigs"
 SRC_COC_SETTINGS="$SCRIPT_DIR/coc-settings.json"
+SRC_CLANG_FORMAT="$SCRIPT_DIR/.clang-format"
 
 DEST_VIM_DIR="$HOME/.vim"
 DEST_VIMCONFIGS_DIR="$DEST_VIM_DIR/vimconfigs"
@@ -18,6 +19,7 @@ DEST_VIM_COC_SETTINGS="$DEST_VIM_DIR/coc-settings.json"
 DEST_COC_DIR="$HOME/.config/coc"
 DEST_COC_SETTINGS="$DEST_COC_DIR/coc-settings.json"
 DEST_COC_EXT_DIR="$DEST_COC_DIR/extensions"
+DEST_CLANG_FORMAT="$HOME/.clang-format"
 
 OS="$(uname -s)"
 
@@ -196,6 +198,28 @@ ensure_clangd_for_brew() {
     fi
 }
 
+ensure_clang_format_for_brew() {
+    if have_cmd clang-format; then
+        log "skip: clang-format уже доступен в PATH ($(command -v clang-format))."
+        return 0
+    fi
+
+    # На Homebrew clang-format доступен через llvm.
+    brew_install_if_missing llvm || true
+
+    local llvm_prefix=""
+    llvm_prefix="$(brew --prefix llvm 2>/dev/null || true)"
+    if [[ -n "$llvm_prefix" && -x "$llvm_prefix/bin/clang-format" ]]; then
+        append_line_if_missing "$HOME/.zprofile" ""
+        append_line_if_missing "$HOME/.zprofile" "# VimConfig llvm"
+        append_line_if_missing "$HOME/.zprofile" "export PATH=\"$llvm_prefix/bin:\$PATH\""
+        export PATH="$llvm_prefix/bin:$PATH"
+        log "clang-format найден: $llvm_prefix/bin/clang-format"
+    else
+        warn "clang-format не найден после установки llvm. Установите clang-format вручную."
+    fi
+}
+
 install_base_dependencies() {
     log "Проверка базовых зависимостей..."
 
@@ -220,6 +244,7 @@ install_base_dependencies() {
         brew_install_if_missing gh || true
         ensure_vim_for_brew
         ensure_clangd_for_brew
+        ensure_clang_format_for_brew
         brew_install_if_missing neocmakelsp || true
 
         # Ноды для CoC: предпочитаем node@20 в PATH.
@@ -251,6 +276,7 @@ install_base_dependencies() {
             apt_install_if_missing gh || true
             apt_install_if_missing vim || true
             apt_install_if_missing clangd || true
+            apt_install_if_missing clang-format || true
             apt_install_if_missing fontconfig || true
             return 0
         fi
@@ -522,6 +548,16 @@ copy_config_files() {
         mkdir -p "$DEST_COC_DIR"
         cp "$SRC_COC_SETTINGS" "$DEST_COC_SETTINGS"
         log "Скопирован: $DEST_COC_SETTINGS"
+    fi
+
+    if [[ -f "$SRC_CLANG_FORMAT" ]]; then
+        if [[ -f "$DEST_CLANG_FORMAT" ]]; then
+            local clang_backup_path="$HOME/.clang-format.backup.$(date +%Y%m%d_%H%M%S)"
+            cp "$DEST_CLANG_FORMAT" "$clang_backup_path"
+            log "Сделан backup: $clang_backup_path"
+        fi
+        cp "$SRC_CLANG_FORMAT" "$DEST_CLANG_FORMAT"
+        log "Скопирован: $DEST_CLANG_FORMAT"
     fi
 }
 
