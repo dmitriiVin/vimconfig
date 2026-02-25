@@ -242,6 +242,170 @@ function! s:SaveAllWorkBuffers() abort
     return !s:HasModifiedWorkBuffers()
 endfunction
 
+" === Список измененных/новых файлов между двумя директориями ===
+function! s:GetChangedFilesForCopy(src_dir, dst_dir) abort
+    let l:cmd = 'rsync -ain --no-owner --no-group --no-perms ' . join(s:GetCodeProfileExcludes(), ' ')
+                \ . ' ' . shellescape(a:src_dir . '/')
+                \ . ' ' . shellescape(a:dst_dir . '/')
+                \ . ' 2>/dev/null'
+    let l:lines = systemlist(l:cmd)
+    let l:files = []
+
+    for l:line in l:lines
+        if l:line !~# '^>f'
+            continue
+        endif
+        let l:path = matchstr(l:line, '\s\zs.*$')
+        if !empty(l:path)
+            call add(l:files, l:path)
+        endif
+    endfor
+
+    call sort(l:files)
+    return uniq(l:files)
+endfunction
+
+" === Разбор списка индексов: 1,3,5-8 или all ===
+function! s:ParseCopySelection(raw_input, max_index) abort
+    let l:text = tolower(trim(a:raw_input))
+    if empty(l:text)
+        return []
+    endif
+
+    if l:text ==# 'all' || l:text ==# '*'
+        return range(1, a:max_index)
+    endif
+
+    let l:indices = []
+    for l:token in split(substitute(l:text, '\s\+', '', 'g'), ',')
+        if l:token =~# '^\d\+$'
+            let l:value = str2nr(l:token)
+            if l:value >= 1 && l:value <= a:max_index
+                call add(l:indices, l:value)
+            endif
+        elseif l:token =~# '^\d\+-\d\+$'
+            let l:parts = split(l:token, '-')
+            let l:start = str2nr(l:parts[0])
+            let l:end = str2nr(l:parts[1])
+            if l:start > l:end
+                let l:tmp = l:start
+                let l:start = l:end
+                let l:end = l:tmp
+            endif
+            for l:value in range(l:start, l:end)
+                if l:value >= 1 && l:value <= a:max_index
+                    call add(l:indices, l:value)
+                endif
+            endfor
+        endif
+    endfor
+
+    call sort(l:indices)
+    return uniq(l:indices)
+endfunction
+
+" === Копирование файлов между debug/release профилями ===
+function! CMakeCopyFilesInteractive() abort
+    let l:cmake_dir = s:ResolveProfileRootForToggle()
+    if s:IsUnsafeProfileRoot(l:cmake_dir)
+        call s:echo_error("❌ Небезопасная директория: " . fnamemodify(l:cmake_dir, ':p'))
+        return
+    endif
+
+    if !s:EnsureCodeProfiles(l:cmake_dir)
+        return
+    endif
+
+    let l:debug_dir = s:GetCodeProfileDir(l:cmake_dir, 'debug')
+    let l:release_dir = s:GetCodeProfileDir(l:cmake_dir, 'release')
+
+    echo "Выберите направление копирования:"
+    echo "1. debug -> release"
+    echo "2. release -> debug"
+    let l:direction = input('Номер: ')
+
+    let l:src_dir = ''
+    let l:dst_dir = ''
+    let l:src_label = ''
+    let l:dst_label = ''
+
+    if l:direction ==# '1'
+        let l:src_dir = l:debug_dir
+        let l:dst_dir = l:release_dir
+        let l:src_label = 'debug'
+        let l:dst_label = 'release'
+    elseif l:direction ==# '2'
+        let l:src_dir = l:release_dir
+        let l:dst_dir = l:debug_dir
+        let l:src_label = 'release'
+        let l:dst_label = 'debug'
+    else
+        call s:echo_warn("🚫 Неверный выбор")
+        return
+    endif
+
+    if s:HasModifiedWorkBuffers() && !s:SaveAllWorkBuffers()
+        call s:echo_warn("⚠️ Не все буферы удалось сохранить перед копированием")
+        return
+    endif
+
+    " Если выбран источник, соответствующий текущему профилю, сначала синхронизируем
+    " текущее дерево в профиль-источник, чтобы копировалась свежая версия кода.
+    let l:active_profile = s:ReadActiveCodeProfile(l:cmake_dir)
+    if empty(l:active_profile)
+        let l:active_profile = s:GetCodeProfileName(g:cmake_build_type)
+    endif
+    if l:active_profile ==# l:src_label
+        let [l:save_code, l:save_msg] = s:SyncTree(l:cmake_dir, l:src_dir)
+        if l:save_code != 0
+            call s:echo_error("❌ Не удалось обновить профиль-источник: " . l:src_label)
+            echom l:save_msg
+            return
+        endif
+    endif
+
+    let l:changed_files = s:GetChangedFilesForCopy(l:src_dir, l:dst_dir)
+    if empty(l:changed_files)
+        call s:echo_info("ℹ️ Нет файлов для копирования " . l:src_label . " -> " . l:dst_label)
+        return
+    endif
+
+    echo "Файлы для копирования (" . l:src_label . " -> " . l:dst_label . "):"
+    for l:i in range(len(l:changed_files))
+        echo (l:i + 1) . '. ' . l:changed_files[l:i]
+    endfor
+
+    let l:selection_raw = input('Номера (1,3,5-8) или all: ')
+    let l:selected = s:ParseCopySelection(l:selection_raw, len(l:changed_files))
+    if empty(l:selected)
+        call s:echo_warn("🚫 Ничего не выбрано")
+        return
+    endif
+
+    let l:copied = 0
+    let l:failed = 0
+    for l:index in l:selected
+        let l:rel_path = l:changed_files[l:index - 1]
+        let l:copy_cmd = 'cd ' . shellescape(l:src_dir)
+                    \ . ' && rsync -a --no-owner --no-group --no-perms --relative '
+                    \ . shellescape('./' . l:rel_path)
+                    \ . ' ' . shellescape(l:dst_dir . '/')
+                    \ . ' 2>/dev/null'
+        call system(l:copy_cmd)
+        if v:shell_error == 0
+            let l:copied += 1
+        else
+            let l:failed += 1
+        endif
+    endfor
+
+    if l:failed > 0
+        call s:echo_warn("⚠️ Скопировано: " . l:copied . ", ошибок: " . l:failed)
+    else
+        call s:echo_success("✅ Скопировано: " . l:copied . " (" . l:src_label . " -> " . l:dst_label . ")")
+    endif
+endfunction
+
 function! s:SwitchCodeProfile(cmake_dir, old_build_type, new_build_type) abort
     if s:IsUnsafeProfileRoot(a:cmake_dir)
         call s:echo_error("❌ Небезопасная директория профиля: " . fnamemodify(a:cmake_dir, ':p'))

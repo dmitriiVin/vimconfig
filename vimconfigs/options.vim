@@ -29,6 +29,7 @@ set cursorline                  " подсветка текущей строки
 set scrolloff=5                 " отступ от краев при скролле
 set timeout
 set timeoutlen=300
+set shortmess+=A                " скрыть предупреждения ATTENTION о swap при открытии
 
 " Терминальные keycodes для Shift+стрелок (особенно Up/Down)
 if !has('gui_running')
@@ -78,11 +79,35 @@ let g:NERDTreeChDirMode = 2
 set wildmenu
 set wildmode=longest:list,full
 set wildignorecase
-set wildignore=*.o,*.obj,*.bak,*.exe,*.pyc,*.jpg,*.gif,*.png
+set wildignore=*.o,*.obj,*.bak,*.exe,*.pyc,*.jpg,*.gif,*.png,*.sw?,*.swp,*.swo,*.swn,*.swx,*.un~
 set path=.,**  " искать в текущей директории и поддиректориях
 
 " Игнорировать некоторые файлы
-let g:NERDTreeIgnore = ['\.pyc$', '__pycache__', '\.git$', '\.DS_Store']
+let g:NERDTreeRespectWildIgnore = 1
+let g:NERDTreeIgnore = [
+            \ '\.pyc$',
+            \ '__pycache__',
+            \ '\.git$',
+            \ '\.DS_Store$',
+            \ '^4913$',
+            \ '\.un\~$',
+            \ '\.sw[a-z]$',
+            \ '\.swp$',
+            \ '\.swo$',
+            \ '\.swn$',
+            \ '\.swx$',
+            \ '\.sw.$',
+            \ '^\.sw[a-z]$',
+            \ '^\.sw.$',
+            \ '^.*\.swp$',
+            \ '^.*\.swo$',
+            \ '^.*\.swn$',
+            \ '^.*\.swx$',
+            \ '^.*\.sw.$',
+            \ '^\.#',
+            \ '^\..*\.sw[a-z]$',
+            \ '^\..*\.sw.$',
+            \ ]
 
 " Показывать строку статуса
 let g:NERDTreeStatusline = '%#NonText#'
@@ -93,6 +118,8 @@ let g:airline#extensions#tabline#enabled = 1
 let g:airline#extensions#tabline#show_buffers = 1
 let g:airline#extensions#tabline#show_tabs = 0
 let g:airline#extensions#tabline#fnamemod = ':t'
+let g:airline#extensions#coc#enabled = 0
+let g:airline_exclude_filetypes = ['qf', 'nerdtree']
 set showtabline=2
 
 " Текущий build type (Debug/Release) в правой части статусной строки.

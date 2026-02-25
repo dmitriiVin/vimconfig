@@ -112,6 +112,9 @@ nnoremap <F9> :call CMakeRunFixed()<CR>
 " F10 - переключение с debug на Release и наоборот
 nnoremap <silent> <F10> <Cmd>call CMakeToggleBuildType()<CR>
 
+" \ + Z - быстрое копирование файлов между debug/release (all или выбор)
+nnoremap <leader>z :call CMakeCopyFilesInteractive()<CR>
+
 " F12 - Создание/открытие CMakeLists.txt в папке NERDTree без закрытия NERDTree
 nnoremap <F12> :call CreateCMakeListsInNERDTree()<CR>
 
@@ -121,6 +124,9 @@ nnoremap <leader>ru :call CMakeQuickRun()<CR>
 " \ + B + T ПОКАЗАТЬ ТЕКУЩИЙ ТИП СБОРКИ (DEBUG / RELEASE)
 nnoremap <leader>bt :call ShowCMakeBuildType()<CR>
 
+" \ + P + C - копирование файлов между debug/release (all или выбор)
+nnoremap <leader>pc :call CMakeCopyFilesInteractive()<CR>
+
 " \ + T + H - выбрать и применить тему
 nnoremap <leader>th :call SelectThemeInteractive()<CR>
 
@@ -129,6 +135,22 @@ nnoremap <leader>ff :call SelectFontInteractive()<CR>
 
 " \ + H - открыть встроенную справку по командам конфигурации
 nnoremap <leader>h :call ShowVimCommandsHelp()<CR>
+
+" Переход по рабочим буферам цифрами (1..9, 0 = 10-й)
+nnoremap <silent> 1 :call VimConfigJumpToBufferIndex(1)<CR>
+nnoremap <silent> 2 :call VimConfigJumpToBufferIndex(2)<CR>
+nnoremap <silent> 3 :call VimConfigJumpToBufferIndex(3)<CR>
+nnoremap <silent> 4 :call VimConfigJumpToBufferIndex(4)<CR>
+nnoremap <silent> 5 :call VimConfigJumpToBufferIndex(5)<CR>
+nnoremap <silent> 6 :call VimConfigJumpToBufferIndex(6)<CR>
+nnoremap <silent> 7 :call VimConfigJumpToBufferIndex(7)<CR>
+nnoremap <silent> 8 :call VimConfigJumpToBufferIndex(8)<CR>
+nnoremap <silent> 9 :call VimConfigJumpToBufferIndex(9)<CR>
+nnoremap <silent> 0 :call VimConfigJumpToBufferIndex(10)<CR>
+
+" Pin / close others
+nnoremap <silent> <leader>bp :call VimConfigTogglePinBuffer()<CR>
+nnoremap <silent> <leader>bo :call VimConfigCloseOtherBuffersPreservingPinned()<CR>
 
 " === УПРАВЛЕНИЕ NERDTREE И БУФЕРАМИ ===
 
@@ -145,7 +167,7 @@ nnoremap <C-n> :call CreateFileOrDirectoryInNERDTree()<CR>
 nnoremap <C-d> :call DeleteFileOrDirectory()<CR>
 
 " Ctrl + B - закрыть текущий файл в буфере
-nnoremap <C-b> :bp\|bd #<CR>
+nnoremap <silent> <C-b> :call VimConfigCloseCurrentBuffer()<CR>
 
 " === РАБОТА С ФАЙЛАМИ И ПУТЯМИ ===
 
@@ -197,7 +219,7 @@ nnoremap <2-LeftMouse> <LeftMouse>i
 nnoremap <leader>bd :bd<CR>
 
 " Закрыть все буферы кроме текущего
-nnoremap <leader>bo :%bd\|e#<CR>
+" nnoremap <leader>bo :%bd\|e#<CR>  " replaced by pin-aware close others
 
 " Быстрое переключение между последними файлами (уже есть)
 nnoremap <C-Tab> :b#<CR>

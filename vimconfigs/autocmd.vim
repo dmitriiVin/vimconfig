@@ -14,14 +14,24 @@ function! s:ClangFormatCurrentBuffer() abort
 
     let l:view = winsaveview()
     let l:cmd = 'clang-format --style=file --fallback-style=Microsoft --assume-filename=' . shellescape(l:global_cfg)
-    silent! undojoin | silent! execute '%!' . l:cmd
-    call winrestview(l:view)
+    try
+        silent! execute '%!' . l:cmd
+    catch
+    finally
+        call winrestview(l:view)
+    endtry
 endfunction
 
 augroup VimConfigClangFormat
     autocmd!
     autocmd FileType c,cpp,cc,cxx,h,hpp,hh,hxx setlocal formatprg=clang-format\ --style=file\ --fallback-style=Microsoft\ --assume-filename=~/.clang-format
     autocmd BufWritePre *.c,*.cc,*.cpp,*.cxx,*.h,*.hh,*.hpp,*.hxx call s:ClangFormatCurrentBuffer()
+augroup END
+
+" Автоматически игнорировать prompt о swap и открывать рабочий файл.
+augroup VimConfigSwapHandling
+    autocmd!
+    autocmd SwapExists * let v:swapchoice = 'e'
 augroup END
 
 " Отключить все клавиши создания/открытия файлов в NERDTree
@@ -33,6 +43,7 @@ autocmd FileType nerdtree nnoremap <buffer> <M-o> <nop>
 
 autocmd FileType nerdtree nnoremap <buffer> <C-n> :call CreateFileOrDirectoryInNERDTree()<CR>
 autocmd FileType nerdtree nnoremap <buffer> <C-d> :call DeleteFileOrDirectory()<CR>
+autocmd FileType nerdtree let b:coc_enabled = 0
 
 " Автозапуск NERDTree при открытии Vim без файлов
 autocmd StdinReadPre * let s:std_in=1
@@ -41,7 +52,7 @@ autocmd VimEnter * if argc() == 0 && !exists("s:std_in") | NERDTree | endif
 " === Quickfix как монитор: открыт на старте, без перехвата фокуса ===
 augroup QuickfixMonitor
     autocmd!
-    autocmd VimEnter,BufEnter * call s:AutoOpenQuickfixMonitor()
+    autocmd VimEnter * if get(g:, 'quickfix_monitor_autostart', 1) | if exists('*timer_start') | call timer_start(120, function('s:AutoOpenQuickfixMonitorDeferred')) | else | call s:AutoOpenQuickfixMonitor() | endif | endif
 augroup END
 
 " === Найти рабочее окно-якорь (не NERDTree и не quickfix) ===
@@ -87,6 +98,10 @@ function! s:AutoOpenQuickfixMonitor() abort
     endif
 
     call OpenQuickfixMonitor()
+endfunction
+
+function! s:AutoOpenQuickfixMonitorDeferred(timer) abort
+    call s:AutoOpenQuickfixMonitor()
 endfunction
 
 " === Автообновление clangd/diagnostics при изменении compile_commands.json ===
@@ -218,7 +233,6 @@ endfunction
 
 augroup CompileCommandsWatcher
     autocmd!
-    autocmd VimEnter * call s:StartCompileCommandsWatcher()
     autocmd BufEnter,FocusGained,CursorHold * call s:TrackCompileCommands()
     if exists('##DirChanged')
         autocmd DirChanged * call s:TrackCompileCommands()
@@ -228,7 +242,7 @@ augroup END
 " === Универсальное автообновление CoC-диагностики для всех языков ===
 augroup CocDiagnosticsLiveRefresh
     autocmd!
-    autocmd BufEnter,BufWritePost,InsertLeave,FocusGained * if exists('*CocActionAsync') | silent! call CocActionAsync('diagnosticRefresh') | endif
+    autocmd BufEnter,BufWritePost,InsertLeave,FocusGained * if &buftype ==# '' && &filetype !=# 'nerdtree' && exists('*CocActionAsync') | silent! call CocActionAsync('diagnosticRefresh') | endif
 augroup END
 
 " === Авто-закрытие quickfix при :q или :q! ===
@@ -255,6 +269,7 @@ autocmd FileType nerdtree nnoremap <silent><buffer> <S-Down> <C-w>j
 
 autocmd FileType nerdtree setlocal nobuflisted signcolumn=no
 autocmd FileType qf setlocal nobuflisted signcolumn=no
+autocmd FileType qf let b:coc_enabled = 0
 autocmd FileType qf nnoremap <buffer> <Tab> <nop>
 autocmd FileType qf nnoremap <buffer> <S-Tab> <nop>
 

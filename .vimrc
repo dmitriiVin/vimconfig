@@ -2,6 +2,10 @@
 " ===      ОСНОВНОЙ ФАЙЛ       ===
 " ================================
 
+" === NERDTree без конфликтов с netrw ===
+let g:loaded_netrw = 1
+let g:loaded_netrwPlugin = 1
+
 let g:git_default_remote_url_template = 'https://github.com/dmitriiVin/{repo}.git'
 let g:git_auto_create_github_repo = 1
 let g:git_auto_create_repo_visibility = 'public'
@@ -24,6 +28,7 @@ source ~/.vim/vimconfigs/functions/terminal.vim
 source ~/.vim/vimconfigs/functions/github.vim
 source ~/.vim/vimconfigs/functions/coc_russian.vim
 source ~/.vim/vimconfigs/functions/help.vim
+source ~/.vim/vimconfigs/functions/workflow.vim
 
 " === Подключаем бинды ===
 source ~/.vim/vimconfigs/mappings.vim

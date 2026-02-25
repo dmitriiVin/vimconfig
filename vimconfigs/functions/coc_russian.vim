@@ -389,34 +389,69 @@ endfunction
 function! TranslateCocMessage(msg)
     let result = a:msg
     for pattern in sort(keys(g:coc_russian_dict), 's:CompareByLengthDesc')
-        let result = substitute(result, pattern, g:coc_russian_dict[pattern], 'g')
+        if empty(pattern)
+            continue
+        endif
+        try
+            let result = substitute(result, pattern, g:coc_russian_dict[pattern], 'g')
+        catch /^Vim\%((\a\+)\)\=:E33/
+            " Защита от пустого/невалидного шаблона замены.
+        endtry
     endfor
     for term in sort(keys(g:coc_russian_terms), 's:CompareByLengthDesc')
-        let result = substitute(result, '\c\<'.escape(term, '\').'\>', g:coc_russian_terms[term], 'g')
+        if empty(term)
+            continue
+        endif
+        try
+            let l:pat = '\c\<'.escape(term, '\.^$~[]*').'\>'
+            let result = substitute(result, l:pat, g:coc_russian_terms[term], 'g')
+        catch /^Vim\%((\a\+)\)\=:E33/
+            " Защита от пустого/невалидного шаблона замены.
+        endtry
     endfor
     return result
 endfunction
 
 " === Обновление quickfix русифицированными CoC-диагностикой ===
 function! ShowDiagnosticsRussian() abort
+    if &filetype ==# 'nerdtree' || &buftype ==# 'quickfix'
+        return
+    endif
+    if !exists('*CocAction') || !get(g:, 'coc_service_initialized', 0)
+        return
+    endif
+
     " Получаем diagnostics
-    let diagnostics = CocAction('diagnosticList')
+    try
+        let diagnostics = CocAction('diagnosticList')
+    catch
+        return
+    endtry
     let qf_list = []
 
     for diag in diagnostics
+        if type(diag) != type({})
+            continue
+        endif
         call add(qf_list, {
-        \ 'filename': diag['file'],
-        \ 'lnum': diag['lnum'],
-        \ 'col': diag['col'],
-        \ 'text': TranslateCocMessage(diag['message']),
-        \ 'type': diag['severity'] == 1 ? 'E' : 'W',
+        \ 'filename': get(diag, 'file', ''),
+        \ 'lnum': get(diag, 'lnum', 1),
+        \ 'col': get(diag, 'col', 1),
+        \ 'text': TranslateCocMessage(get(diag, 'message', '')),
+        \ 'type': get(diag, 'severity', 2) == 1 ? 'E' : 'W',
         \ })
     endfor
 
     " Обновляем quickfix без смены фокуса.
     " Переход в quickfix выполняется только вручную по маппингу :copen.
-    call setqflist(qf_list, 'r')
+    silent! call setqflist(qf_list, 'r')
 endfunction
 
-" В этом же файле coc_russian.vim
-autocmd User CocDiagnosticChange call ShowDiagnosticsRussian()
+" Обновлять quickfix при изменении диагностики CoC без дублирования autocmd.
+augroup VimConfigCocRussian
+    autocmd!
+    " Автообновление отключено: на некоторых версиях Vim/CoC даёт зацикленные ошибки E33.
+    " Используйте ручной вызов: :CocRuDiagnostics
+augroup END
+
+command! -nargs=0 CocRuDiagnostics call ShowDiagnosticsRussian()
