@@ -417,7 +417,7 @@ function! ShowDiagnosticsRussian() abort
     if &filetype ==# 'nerdtree' || &buftype ==# 'quickfix'
         return
     endif
-    if !exists('*CocAction') || !get(g:, 'coc_service_initialized', 0)
+    if !exists('*CocAction')
         return
     endif
 
@@ -447,11 +447,24 @@ function! ShowDiagnosticsRussian() abort
     silent! call setqflist(qf_list, 'r')
 endfunction
 
-" Обновлять quickfix при изменении диагностики CoC без дублирования autocmd.
+" Планировщик обновления quickfix, чтобы не дергать setqflist слишком часто.
+let s:coc_ru_diag_timer = -1
+function! s:ScheduleDiagnosticsRussianRefresh() abort
+    if exists('*timer_start')
+        if exists('*timer_stop') && s:coc_ru_diag_timer > 0
+            call timer_stop(s:coc_ru_diag_timer)
+        endif
+        let s:coc_ru_diag_timer = timer_start(80, {-> ShowDiagnosticsRussian()})
+    else
+        call ShowDiagnosticsRussian()
+    endif
+endfunction
+
+" Обновлять quickfix при изменении диагностики CoC.
 augroup VimConfigCocRussian
     autocmd!
-    " Автообновление отключено: на некоторых версиях Vim/CoC даёт зацикленные ошибки E33.
-    " Используйте ручной вызов: :CocRuDiagnostics
+    autocmd User CocDiagnosticChange call s:ScheduleDiagnosticsRussianRefresh()
+    autocmd BufEnter,BufWritePost,InsertLeave,FocusGained * if &buftype ==# '' && &filetype !=# 'nerdtree' | call s:ScheduleDiagnosticsRussianRefresh() | endif
 augroup END
 
 command! -nargs=0 CocRuDiagnostics call ShowDiagnosticsRussian()

@@ -42,8 +42,8 @@ inoremap <C-z> <C-o>u
 nnoremap <C-f> /
 inoremap <C-f> <Esc>/
 
-" Ctrl + H - убрать подсветку результатов поиска
-nnoremap <C-h> :nohlsearch<CR>
+" \nh - убрать подсветку результатов поиска
+nnoremap <leader>nh :nohlsearch<CR>
 
 " Ctrl + N - создать новый файл
 nnoremap <C-n> :call CreateNewFile()<CR>
@@ -310,6 +310,8 @@ nnoremap <leader>qn :cnext<CR>
 nnoremap <leader>qp :cprev<CR>
 nnoremap <leader>qf :cfirst<CR>
 nnoremap <leader>ql :clast<CR>
+nnoremap <silent> <C-g> :cfirst<CR>
+nnoremap <silent> <C-h> :clast<CR>
 
 
 " Ctrl + Shift + R — Полный рестарт Vim

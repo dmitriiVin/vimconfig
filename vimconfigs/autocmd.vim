@@ -104,6 +104,93 @@ function! s:AutoOpenQuickfixMonitorDeferred(timer) abort
     call s:AutoOpenQuickfixMonitor()
 endfunction
 
+" === Синхронизация quickfix с текущей строкой кода (без смены фокуса) ===
+let s:qf_cursor_sync_timer = -1
+let s:qf_cursor_sync_pending_bufnr = -1
+let s:qf_cursor_sync_pending_lnum = -1
+let s:qf_cursor_sync_last_key = ''
+
+function! s:GetItemBufferNumber(item) abort
+    let l:item_bufnr = get(a:item, 'bufnr', 0)
+    if l:item_bufnr > 0
+        return l:item_bufnr
+    endif
+
+    let l:filename = get(a:item, 'filename', '')
+    if empty(l:filename)
+        return -1
+    endif
+
+    return bufnr(fnamemodify(l:filename, ':p'))
+endfunction
+
+function! s:ApplyQuickfixCursorSync(bufnr, lnum) abort
+    if a:bufnr <= 0 || a:lnum <= 0
+        return
+    endif
+
+    " Синхронизацию делаем только когда quickfix-окно реально открыто.
+    if empty(filter(getwininfo(), 'v:val.quickfix'))
+        return
+    endif
+
+    let l:qf = getqflist({'id': 0, 'idx': 0, 'items': 1})
+    if get(l:qf, 'id', 0) <= 0
+        return
+    endif
+
+    let l:items = get(l:qf, 'items', [])
+    if empty(l:items)
+        return
+    endif
+
+    let l:target_idx = -1
+    for l:i in range(0, len(l:items) - 1)
+        let l:item = l:items[l:i]
+        let l:item_bufnr = s:GetItemBufferNumber(l:item)
+        if l:item_bufnr == a:bufnr && get(l:item, 'lnum', 0) == a:lnum
+            let l:target_idx = l:i + 1
+            break
+        endif
+    endfor
+
+    if l:target_idx <= 0 || l:target_idx == get(l:qf, 'idx', 0)
+        return
+    endif
+
+    silent! call setqflist([], 'a', {'idx': l:target_idx})
+endfunction
+
+function! s:ScheduleQuickfixCursorSync() abort
+    if &buftype !=# '' || &filetype ==# 'nerdtree'
+        return
+    endif
+
+    let l:bufnr = bufnr('%')
+    let l:lnum = line('.')
+    let l:key = l:bufnr . ':' . l:lnum
+    if l:key ==# s:qf_cursor_sync_last_key
+        return
+    endif
+    let s:qf_cursor_sync_last_key = l:key
+
+    if exists('*timer_start')
+        let s:qf_cursor_sync_pending_bufnr = l:bufnr
+        let s:qf_cursor_sync_pending_lnum = l:lnum
+        if exists('*timer_stop') && s:qf_cursor_sync_timer > 0
+            call timer_stop(s:qf_cursor_sync_timer)
+        endif
+        let s:qf_cursor_sync_timer = timer_start(40, {-> s:ApplyQuickfixCursorSync(s:qf_cursor_sync_pending_bufnr, s:qf_cursor_sync_pending_lnum)})
+    else
+        call s:ApplyQuickfixCursorSync(l:bufnr, l:lnum)
+    endif
+endfunction
+
+augroup QuickfixCursorSync
+    autocmd!
+    autocmd CursorMoved,BufEnter * call s:ScheduleQuickfixCursorSync()
+augroup END
+
 " === Автообновление clangd/diagnostics при изменении compile_commands.json ===
 let s:last_compile_commands_sig = ''
 if exists('*timer_stop') && exists('s:compile_commands_watch_timer') && s:compile_commands_watch_timer > 0
