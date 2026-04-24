@@ -14,6 +14,87 @@ function! TerminalTabComplete()
     endif
 endfunction
 
+" === Toggle терминала внутри Vim (открыть/закрыть одной клавишей) ===
+let g:vimconfig_terminal_bufnr = get(g:, 'vimconfig_terminal_bufnr', -1)
+let g:vimconfig_terminal_prev_winid = get(g:, 'vimconfig_terminal_prev_winid', -1)
+
+function! s:IsCodeWindow(winid) abort
+    if a:winid <= 0
+        return 0
+    endif
+    let l:bufnr = winbufnr(a:winid)
+    if l:bufnr <= 0
+        return 0
+    endif
+    let l:buftype = getbufvar(l:bufnr, '&buftype')
+    let l:filetype = getbufvar(l:bufnr, '&filetype')
+    return l:buftype ==# '' && l:filetype !=# 'nerdtree'
+endfunction
+
+function! s:FindCodeWindowInCurrentTab() abort
+    for l:wininfo in getwininfo()
+        if l:wininfo.tabnr == tabpagenr() && s:IsCodeWindow(l:wininfo.winid)
+            return l:wininfo.winid
+        endif
+    endfor
+    return -1
+endfunction
+
+function! s:FindTerminalWinId() abort
+    for l:wininfo in getwininfo()
+        if l:wininfo.tabnr != tabpagenr()
+            continue
+        endif
+        let l:bufnr = winbufnr(l:wininfo.winnr)
+        if l:bufnr > 0 && getbufvar(l:bufnr, '&buftype') ==# 'terminal'
+            if g:vimconfig_terminal_bufnr <= 0 || l:bufnr ==# g:vimconfig_terminal_bufnr
+                return l:wininfo.winid
+            endif
+        endif
+    endfor
+    return -1
+endfunction
+
+function! VimConfigToggleTerminal() abort
+    " If terminal window is open -> close it and return to previous code window.
+    let l:term_winid = s:FindTerminalWinId()
+    if l:term_winid > 0
+        let l:target_winid = get(g:, 'vimconfig_terminal_prev_winid', -1)
+        silent! call win_gotoid(l:term_winid)
+        silent! close
+        if l:target_winid > 0 && s:IsCodeWindow(l:target_winid)
+            silent! call win_gotoid(l:target_winid)
+        else
+            let l:fallback = s:FindCodeWindowInCurrentTab()
+            if l:fallback > 0
+                silent! call win_gotoid(l:fallback)
+            endif
+        endif
+        return
+    endif
+
+    " Open terminal in a code window (not in NERDTree/quickfix).
+    let l:origin = win_getid()
+    let g:vimconfig_terminal_prev_winid = s:IsCodeWindow(l:origin) ? l:origin : s:FindCodeWindowInCurrentTab()
+    if g:vimconfig_terminal_prev_winid > 0
+        silent! call win_gotoid(g:vimconfig_terminal_prev_winid)
+    endif
+
+    let l:height = get(g:, 'vimconfig_terminal_height', 12)
+    execute 'silent! botright ' . l:height . 'split'
+
+    " Reuse existing terminal buffer if possible.
+    if get(g:, 'vimconfig_terminal_bufnr', -1) > 0 && bufexists(g:vimconfig_terminal_bufnr) && getbufvar(g:vimconfig_terminal_bufnr, '&buftype') ==# 'terminal'
+        execute 'buffer ' . g:vimconfig_terminal_bufnr
+    else
+        silent! terminal
+        let g:vimconfig_terminal_bufnr = bufnr('%')
+    endif
+
+    setlocal nonumber norelativenumber signcolumn=no
+    startinsert
+endfunction
+
 " === Безопасное переключение на предыдущий буфер (не из NERDTree) ===
 function! SafeBufferSwitch()
     if &filetype != 'nerdtree'

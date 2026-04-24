@@ -42,6 +42,11 @@ inoremap <C-z> <C-o>u
 nnoremap <C-f> /
 inoremap <C-f> <Esc>/
 
+" Ctrl + T - открыть/закрыть терминал внизу (toggle)
+nnoremap <silent> <C-t> :call VimConfigToggleTerminal()<CR>
+inoremap <silent> <C-t> <Esc>:call VimConfigToggleTerminal()<CR>
+tnoremap <silent> <C-t> <C-\><C-n>:call VimConfigToggleTerminal()<CR>
+
 " \nh - убрать подсветку результатов поиска
 nnoremap <leader>nh :nohlsearch<CR>
 
