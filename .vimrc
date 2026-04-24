@@ -17,6 +17,9 @@ elseif executable('node')
     let g:coc_node_path = exepath('node')
 endif
 
+" Подавить warning от coc.nvim (на случай, если его включат вручную на старом Vim/Node).
+let g:coc_disable_startup_warning = 1
+
 " подключаем авто функции
 source ~/.vim/vimconfigs/autocmd.vim
 
