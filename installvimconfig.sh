@@ -73,6 +73,12 @@ ensure_brew() {
         return 0
     fi
 
+    # Homebrew refuses to run as root (and should not be installed that way).
+    if is_root; then
+        warn "Homebrew не устанавливается от root, пропускаю."
+        return 1
+    fi
+
     if [[ "$OS" != "Darwin" && "$OS" != "Linux" ]]; then
         return 1
     fi
@@ -187,6 +193,72 @@ vim_meets_minimum() {
     vim -Nu NONE -n -es +"if has('patch-9.0.0438') | qall! | else | cq | endif" >/dev/null 2>&1
 }
 
+node_meets_minimum() {
+    # coc.nvim requires Node.js >= 16.18.0
+    if ! have_cmd node; then
+        return 1
+    fi
+
+    local ver major minor
+    ver="$(node --version 2>/dev/null || true)"
+    ver="${ver#v}"
+    major="${ver%%.*}"
+    minor="${ver#*.}"; minor="${minor%%.*}"
+    [[ "$major" =~ ^[0-9]+$ ]] || return 1
+    [[ "$minor" =~ ^[0-9]+$ ]] || return 1
+
+    if (( major > 16 )); then
+        return 0
+    fi
+    if (( major == 16 && minor >= 18 )); then
+        return 0
+    fi
+    return 1
+}
+
+ensure_node_minimum_version() {
+    if node_meets_minimum; then
+        log "Node.js версия подходит (>= 16.18)."
+        return 0
+    fi
+
+    warn "Node.js слишком старый для coc.nvim. Пытаюсь обновить Node.js..."
+
+    if have_cmd brew; then
+        brew_install_if_missing node@20 || true
+        brew link --overwrite --force node@20 >/dev/null 2>&1 || true
+    elif [[ "$OS" == "Linux" ]]; then
+        if have_cmd apt-get && (is_root || have_cmd sudo); then
+            # NodeSource (официальный репозиторий) для установки свежей LTS.
+            # Ubuntu 22.04 часто даёт nodejs 12.x, чего недостаточно для coc.nvim.
+            run_privileged apt-get update -y >/dev/null 2>&1 || true
+            run_privileged apt-get install -y ca-certificates curl gnupg >/dev/null 2>&1 || true
+            if curl -fsSL https://deb.nodesource.com/setup_20.x | run_privileged bash - >/dev/null 2>&1; then
+                run_privileged apt-get install -y nodejs >/dev/null 2>&1 || true
+            else
+                warn "Не удалось подключить NodeSource. Оставляю системный Node.js."
+            fi
+        elif have_cmd dnf && (is_root || have_cmd sudo); then
+            if curl -fsSL https://rpm.nodesource.com/setup_20.x | run_privileged bash - >/dev/null 2>&1; then
+                run_privileged dnf install -y nodejs >/dev/null 2>&1 || true
+            else
+                warn "Не удалось подключить NodeSource для dnf. Оставляю системный Node.js."
+            fi
+        elif have_cmd pacman && (is_root || have_cmd sudo); then
+            run_privileged pacman -Syu --noconfirm nodejs npm >/dev/null 2>&1 || run_privileged pacman -S --noconfirm nodejs npm >/dev/null 2>&1 || true
+        fi
+    fi
+
+    if node_meets_minimum; then
+        log "Node.js обновлен: версия подходит (>= 16.18)."
+        return 0
+    fi
+
+    warn "Не удалось получить Node.js >= 16.18 через пакетный менеджер."
+    warn "CoC extensions будут пропущены."
+    return 0
+}
+
 ensure_vim_minimum_version() {
     if vim_meets_minimum; then
         log "Vim версия подходит (>= 9.0.0438)."
@@ -211,6 +283,17 @@ ensure_vim_minimum_version() {
         if have_cmd apt-get && (is_root || have_cmd sudo); then
             run_privileged apt-get update -y >/dev/null 2>&1 || true
             run_privileged apt-get install -y vim >/dev/null 2>&1 || true
+
+            # Ubuntu/Debian пакеты часто содержат Vim 8.x. Пробуем PPA с Vim 9.x.
+            if ! vim_meets_minimum; then
+                run_privileged apt-get install -y software-properties-common >/dev/null 2>&1 || true
+                if have_cmd add-apt-repository; then
+                    if run_privileged add-apt-repository -y ppa:jonathonf/vim >/dev/null 2>&1; then
+                        run_privileged apt-get update -y >/dev/null 2>&1 || true
+                        run_privileged apt-get install -y vim >/dev/null 2>&1 || true
+                    fi
+                fi
+            fi
         elif have_cmd dnf && (is_root || have_cmd sudo); then
             run_privileged dnf install -y vim-enhanced >/dev/null 2>&1 || true
         elif have_cmd pacman && (is_root || have_cmd sudo); then
@@ -313,6 +396,7 @@ install_base_dependencies() {
         brew_install_if_missing gh || true
         ensure_vim_for_brew
         ensure_vim_minimum_version
+        ensure_node_minimum_version
         ensure_clangd_for_brew
         ensure_clang_format_for_brew
         brew_install_if_missing neocmakelsp || true
@@ -341,6 +425,7 @@ install_base_dependencies() {
             apt_install_if_missing shellcheck || true
             apt_install_if_missing nodejs || true
             apt_install_if_missing npm || true
+            ensure_node_minimum_version
             apt_install_if_missing python3 || true
             apt_install_if_missing python3-pip || true
             apt_install_if_missing gh || true
@@ -470,6 +555,15 @@ install_python_helpers() {
 }
 
 install_coc_extensions() {
+    if ! vim_meets_minimum; then
+        warn "Vim слишком старый для coc.nvim. Установка CoC extensions пропущена."
+        return 0
+    fi
+    if ! node_meets_minimum; then
+        warn "Node.js слишком старый для coc.nvim. Установка CoC extensions пропущена."
+        return 0
+    fi
+
     local npm_bin
     if ! npm_bin="$(detect_npm_bin)"; then
         warn "npm не найден, установка CoC extensions пропущена."
