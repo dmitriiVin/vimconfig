@@ -17,6 +17,7 @@ endfunction
 " === Toggle терминала внутри Vim (открыть/закрыть одной клавишей) ===
 let g:vimconfig_terminal_bufnr = get(g:, 'vimconfig_terminal_bufnr', -1)
 let g:vimconfig_terminal_prev_winid = get(g:, 'vimconfig_terminal_prev_winid', -1)
+let g:vimconfig_terminal_restore_quickfix = get(g:, 'vimconfig_terminal_restore_quickfix', 1)
 
 function! s:IsCodeWindow(winid) abort
     if a:winid <= 0
@@ -70,6 +71,13 @@ function! VimConfigToggleTerminal() abort
                 silent! call win_gotoid(l:fallback)
             endif
         endif
+
+        " Restore quickfix monitor after terminal closes (if it was visible).
+        if get(g:, 'vimconfig_terminal_restore_quickfix', 0)
+            if exists('*OpenQuickfixMonitor')
+                silent! call OpenQuickfixMonitor()
+            endif
+        endif
         return
     endif
 
@@ -79,6 +87,10 @@ function! VimConfigToggleTerminal() abort
     if g:vimconfig_terminal_prev_winid > 0
         silent! call win_gotoid(g:vimconfig_terminal_prev_winid)
     endif
+
+    " Hide quickfix while terminal is open (they replace each other).
+    let g:vimconfig_terminal_restore_quickfix = !empty(filter(getwininfo(), 'v:val.quickfix'))
+    silent! cclose
 
     let l:height = get(g:, 'vimconfig_terminal_height', 12)
     execute 'silent! botright ' . l:height . 'split'
