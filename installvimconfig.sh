@@ -31,6 +31,25 @@ have_cmd() {
     command -v "$1" >/dev/null 2>&1
 }
 
+is_root() {
+    [[ "${EUID:-$(id -u)}" -eq 0 ]]
+}
+
+run_privileged() {
+    # Run command as root when possible; otherwise use sudo if available.
+    if is_root; then
+        "$@"
+        return $?
+    fi
+
+    if have_cmd sudo; then
+        sudo "$@"
+        return $?
+    fi
+
+    return 127
+}
+
 append_line_if_missing() {
     local file="$1"
     local line="$2"
@@ -114,9 +133,9 @@ apt_install_if_missing() {
         return 0
     fi
 
-    if have_cmd sudo; then
+    if is_root || have_cmd sudo; then
         log "Устанавливаю $pkg (apt)..."
-        sudo apt-get install -y "$pkg"
+        run_privileged apt-get install -y "$pkg"
     else
         warn "sudo недоступен, пропускаю установку $pkg."
     fi
@@ -133,9 +152,9 @@ dnf_install_if_missing() {
         return 0
     fi
 
-    if have_cmd sudo; then
+    if is_root || have_cmd sudo; then
         log "Устанавливаю $pkg (dnf)..."
-        sudo dnf install -y "$pkg"
+        run_privileged dnf install -y "$pkg"
     else
         warn "sudo недоступен, пропускаю установку $pkg."
     fi
@@ -152,12 +171,62 @@ pacman_install_if_missing() {
         return 0
     fi
 
-    if have_cmd sudo; then
+    if is_root || have_cmd sudo; then
         log "Устанавливаю $pkg (pacman)..."
-        sudo pacman -S --noconfirm "$pkg"
+        run_privileged pacman -S --noconfirm "$pkg"
     else
         warn "sudo недоступен, пропускаю установку $pkg."
     fi
+}
+
+vim_meets_minimum() {
+    # coc.nvim requires Vim 9.0.0438+ (Vim9 features like :export).
+    if ! have_cmd vim; then
+        return 1
+    fi
+    vim -Nu NONE -n -es +"if has('patch-9.0.0438') | qall! | else | cq | endif" >/dev/null 2>&1
+}
+
+ensure_vim_minimum_version() {
+    if vim_meets_minimum; then
+        log "Vim версия подходит (>= 9.0.0438)."
+        return 0
+    fi
+
+    if have_cmd vim; then
+        warn "Vim слишком старый для coc.nvim. Пытаюсь обновить Vim..."
+    else
+        warn "Vim не найден. Пытаюсь установить Vim..."
+    fi
+
+    if have_cmd brew; then
+        # Prefer brew Vim when possible.
+        if brew list --formula vim >/dev/null 2>&1; then
+            brew upgrade vim >/dev/null 2>&1 || true
+        else
+            brew install vim >/dev/null 2>&1 || true
+        fi
+        brew link --overwrite --force vim >/dev/null 2>&1 || true
+    elif [[ "$OS" == "Linux" ]]; then
+        if have_cmd apt-get && (is_root || have_cmd sudo); then
+            run_privileged apt-get update -y >/dev/null 2>&1 || true
+            run_privileged apt-get install -y vim >/dev/null 2>&1 || true
+        elif have_cmd dnf && (is_root || have_cmd sudo); then
+            run_privileged dnf install -y vim-enhanced >/dev/null 2>&1 || true
+        elif have_cmd pacman && (is_root || have_cmd sudo); then
+            # Try full upgrade first for a recent Vim.
+            run_privileged pacman -Syu --noconfirm vim >/dev/null 2>&1 || run_privileged pacman -S --noconfirm vim >/dev/null 2>&1 || true
+        fi
+    fi
+
+    if vim_meets_minimum; then
+        log "Vim обновлен/установлен: версия подходит (>= 9.0.0438)."
+        return 0
+    fi
+
+    warn "Не удалось получить Vim >= 9.0.0438 через пакетный менеджер."
+    warn "CoC будет автоматически отключен в vimconfigs/plugins.vim на старом Vim."
+    return 0
 }
 
 ensure_vim_for_brew() {
@@ -243,6 +312,7 @@ install_base_dependencies() {
         brew_install_if_missing node@20 || true
         brew_install_if_missing gh || true
         ensure_vim_for_brew
+        ensure_vim_minimum_version
         ensure_clangd_for_brew
         ensure_clang_format_for_brew
         brew_install_if_missing neocmakelsp || true
@@ -256,9 +326,9 @@ install_base_dependencies() {
 
     # Fallback на системные менеджеры Linux, если brew недоступен.
     if [[ "$OS" == "Linux" ]]; then
-        if have_cmd apt-get && have_cmd sudo; then
+        if have_cmd apt-get && (is_root || have_cmd sudo); then
             log "Обновляю индекс apt..."
-            sudo apt-get update -y
+            run_privileged apt-get update -y
 
             apt_install_if_missing git || true
             apt_install_if_missing curl || true
@@ -275,6 +345,7 @@ install_base_dependencies() {
             apt_install_if_missing python3-pip || true
             apt_install_if_missing gh || true
             apt_install_if_missing vim || true
+            ensure_vim_minimum_version
             apt_install_if_missing clangd || true
             apt_install_if_missing clang-format || true
             apt_install_if_missing fontconfig || true
